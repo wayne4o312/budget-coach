@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ADD COLUMN "kind" text DEFAULT 'expense' NOT NULL;
