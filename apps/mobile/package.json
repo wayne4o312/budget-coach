@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
+    "dev": "bun run start",
     "start": "bunx expo start --port 8082",
     "start:offline": "bunx expo start --offline --port 8082",
     "start:dev-client": "bunx expo start --dev-client --port 8082",
