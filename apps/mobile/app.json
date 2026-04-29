@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "mobile",
+    "slug": "mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": [
+      "mobile",
+      "budgetcoach"
+    ],
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash/splash-01.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2EE67A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kwayne.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-video"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
