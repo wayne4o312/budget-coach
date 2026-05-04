@@ -1,8 +1,20 @@
 import type * as React from "react";
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Platform, Pressable, View } from "react-native";
 import { Portal } from "@rn-primitives/portal";
+
 import { Text } from "@/components/ui/text";
+
+import Colors from "@/constants/Colors";
+
+const C = Colors.light;
 
 type ToastVariant = "default" | "error";
 
@@ -13,7 +25,10 @@ type ToastItem = {
 };
 
 type ToastContextValue = {
-  showToast: (message: string, opts?: { variant?: ToastVariant; durationMs?: number }) => void;
+  showToast: (
+    message: string,
+    opts?: { variant?: ToastVariant; durationMs?: number }
+  ) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -54,29 +69,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toast ? (
           <View
             pointerEvents="box-none"
-            className="absolute left-0 right-0 top-0"
             style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
               paddingTop: Platform.OS === "ios" ? 52 : 24,
               paddingHorizontal: 16,
             }}
           >
             <Pressable
               onPress={hide}
-              className={`w-full rounded-lg px-4 py-3 ${
-                toast.variant === "error" ? "bg-destructive" : "bg-foreground"
-              }`}
-              style={{
-                shadowColor: "#000",
-                shadowOpacity: 0.12,
-                shadowRadius: 10,
-                shadowOffset: { width: 0, height: 6 },
-                elevation: 6,
-              }}
+              style={[
+                {
+                  width: "100%",
+                  borderRadius: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  backgroundColor:
+                    toast.variant === "error" ? "#a32f2d" : C.text,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.12,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 6,
+                },
+              ]}
             >
               <Text
-                className={`text-sm ${
-                  toast.variant === "error" ? "text-white" : "text-background"
-                }`}
+                style={{
+                  fontSize: 14,
+                  color:
+                    toast.variant === "error" ? "#fff" : C.background,
+                }}
               >
                 {toast.message}
               </Text>
@@ -93,4 +118,3 @@ export function useToast() {
   if (!ctx) throw new Error("useToast must be used within ToastProvider");
   return ctx;
 }
-

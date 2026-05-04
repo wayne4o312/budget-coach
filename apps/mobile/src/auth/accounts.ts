@@ -13,8 +13,11 @@ export type StoredAccount = {
 const ACCOUNTS_KEY = "budgetcoach.accounts.v1";
 const ACTIVE_PREFIX_KEY = "budgetcoach.activePrefix.v1";
 
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
+/** 账号在本地列表中的去重键：邮箱小写；手机号保留原样（含 +）。 */
+function normalizeAccountKey(identifier: string) {
+  const t = identifier.trim();
+  if (t.includes("@")) return t.toLowerCase();
+  return t;
 }
 
 export async function loadAccounts(): Promise<StoredAccount[]> {
@@ -48,22 +51,25 @@ export async function setActiveAccountPrefix(prefix: string) {
   await refreshAuthState();
 }
 
-export async function upsertCurrentAccountMeta(email: string) {
-  const e = normalizeEmail(email);
+export async function upsertCurrentAccountMeta(identifier: string) {
+  const key = normalizeAccountKey(identifier);
   const accounts = await loadAccounts();
   const prefix = getActiveStoragePrefix();
 
-  const existing = accounts.find((a) => a.storagePrefix === prefix || a.email === e);
+  const existing = accounts.find((a) => a.storagePrefix === prefix || a.email === key);
   const now = Date.now();
+  const defaultLabel = key.includes("@")
+    ? key.split("@")[0] || "Account"
+    : key.replace(/^\+86/, "") || "Account";
   if (existing) {
-    existing.email = e;
-    existing.label = existing.label || e.split("@")[0] || "Account";
+    existing.email = key;
+    existing.label = existing.label || defaultLabel;
     existing.lastUsedAt = now;
   } else {
     accounts.unshift({
       id: `${now}-${Math.random().toString(16).slice(2)}`,
-      email: e,
-      label: e.split("@")[0] || "Account",
+      email: key,
+      label: defaultLabel,
       storagePrefix: prefix,
       lastUsedAt: now,
     });
@@ -76,7 +82,7 @@ export async function upsertCurrentAccountMeta(email: string) {
 
 export async function createNewAccountSlot(seedEmail: string) {
   const now = Date.now();
-  const e = seedEmail ? normalizeEmail(seedEmail) : "";
+  const e = seedEmail ? normalizeAccountKey(seedEmail) : "";
   const prefix = e ? `budgetcoach:${e}:${now}` : `budgetcoach:slot:${now}`;
   await setActiveAccountPrefix(prefix);
 }

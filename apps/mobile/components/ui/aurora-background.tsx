@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import type { PropsWithChildren } from "react";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from "react-native-svg";
 import Animated, {
   Easing,
@@ -12,10 +12,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { cn } from "@/components/lib/utils";
-
 type AuroraBackgroundProps = PropsWithChildren<{
-  className?: string;
+  style?: ViewStyle | ViewStyle[];
   /** 主页装饰：波纹线、星光点、流光动画。其它页面可关掉保持干净。 */
   decorations?: boolean;
   /** clean：只有奶油米绿底色（无半圆光斑/无装饰）；home：完整极光+装饰 */
@@ -24,7 +22,7 @@ type AuroraBackgroundProps = PropsWithChildren<{
 
 export function AuroraBackground({
   children,
-  className,
+  style,
   decorations = true,
   variant = "home",
 }: AuroraBackgroundProps) {
@@ -56,7 +54,7 @@ export function AuroraBackground({
   });
 
   return (
-    <View className={cn("flex-1", className)}>
+    <View style={[{ flex: 1 }, style]}>
       {/* 奶油米绿色基底 */}
       <LinearGradient
         colors={[

@@ -3,7 +3,7 @@ import * as React from "react";
 import type { PropsWithChildren } from "react";
 import { View, Text, type ViewStyle } from "react-native";
 
-import { cn } from "@/components/lib/utils";
+import { ui } from "@/src/theme/rn";
 
 type BoundaryState = { hasError: boolean };
 
@@ -32,25 +32,28 @@ class LinearGradientBoundary extends React.PureComponent<
   }
 }
 
+const wrapStyle: ViewStyle = {
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: ui.border,
+  overflow: "hidden",
+  backgroundColor: ui.card,
+};
+
 export function GradientCard({
   children,
-  className,
   style,
   colors = ["#FCF7EF", "#F2E5D6"],
   start = { x: 0, y: 0 },
   end = { x: 1, y: 1 },
 }: PropsWithChildren<{
-  className?: string;
   style?: ViewStyle | ViewStyle[];
   colors?: readonly [string, string, ...string[]];
   start?: { x: number; y: number };
   end?: { x: number; y: number };
 }>) {
   const fallback = (
-    <View
-      className={cn("border-border rounded-lg border bg-card", className)}
-      style={[{ backgroundColor: colors[0] }, style]}
-    >
+    <View style={[wrapStyle, { backgroundColor: colors[0] }, style]}>
       {__DEV__ ? (
         <View
           style={{
@@ -95,8 +98,7 @@ export function GradientCard({
         colors={colors}
         start={start}
         end={end}
-        className={cn("border-border rounded-lg border", className)}
-        style={style}
+        style={[wrapStyle, style]}
       >
         {children}
       </LinearGradient>

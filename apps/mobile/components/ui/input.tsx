@@ -1,25 +1,33 @@
-import { cn } from '@/components/lib/utils';
-import { Platform, TextInput } from 'react-native';
+import * as React from "react";
+import { Platform, TextInput, type TextInputProps, type TextStyle } from "react-native";
 
-function Input({ className, ...props }: React.ComponentProps<typeof TextInput>) {
+import { mergeText, ui } from "@/src/theme/rn";
+
+const base: TextStyle = {
+  borderWidth: 1,
+  borderColor: ui.border,
+  backgroundColor: ui.background,
+  color: ui.text,
+  minHeight: 40,
+  width: "100%",
+  minWidth: 0,
+  borderRadius: 4,
+  paddingHorizontal: 12,
+  paddingVertical: Platform.OS === "ios" ? 10 : 8,
+  fontSize: 16,
+  lineHeight: 20,
+};
+
+function Input({ style, editable, ...props }: TextInputProps) {
+  const disabled = editable === false;
   return (
     <TextInput
-      className={cn(
-        'border-input bg-background text-foreground flex h-10 w-full min-w-0 flex-row items-center rounded-sm border px-3 py-1 text-base leading-5 sm:h-9',
-        props.editable === false &&
-          cn(
-            'opacity-50',
-            Platform.select({ web: 'disabled:pointer-events-none disabled:cursor-not-allowed' })
-          ),
-        Platform.select({
-          web: cn(
-            'placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground outline-none transition-[color,box-shadow] md:text-sm',
-            'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
-            'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive'
-          ),
-          native: 'placeholder:text-muted-foreground/50',
-        }),
-        className
+      placeholderTextColor={ui.mutedText}
+      editable={editable}
+      style={mergeText(
+        base,
+        disabled ? { opacity: 0.5 } : undefined,
+        style,
       )}
       {...props}
     />

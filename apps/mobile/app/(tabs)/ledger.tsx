@@ -9,7 +9,6 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import Animated, {
   Easing,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -24,9 +23,70 @@ import {
   type TrendPoint,
   type TxKind,
 } from "@/src/domain/ledgerStats";
+import { ledgerStyles } from "@/src/screenStyles/ledgerTab.styles";
+import {
+  INCOME_PIE_COLORS,
+  PIE_CHART_LABEL_COLOR,
+  pieColorForExpenseCategoryLabel,
+} from "@/src/domain/spendCategories";
+import {
+  Group,
+  Text as SkiaText,
+  useFont,
+  type SkFont,
+} from "@shopify/react-native-skia";
 import { CartesianChart, Line, Pie, PolarChart } from "victory-native";
 
+function skiaTextWidth(text: string, font: SkFont | null): number {
+  if (!font || !text) return 0;
+  return font.getGlyphWidths(font.getGlyphIDs(text)).reduce((a, b) => a + b, 0);
+}
+
 type Granularity = "day" | "week" | "month" | "year";
+
+const PIE_CHART_SIZE = 160;
+
+/** 扇形 + 扇区内仅显示占比 %（类目在下方列表） */
+function LedgerPieChart(props: {
+  rows: { label: string; value: number; color: string }[];
+  pieTotalCents: number;
+}) {
+  const { rows, pieTotalCents } = props;
+  const font = useFont(require("../../assets/fonts/DINPro-Medium.otf"), 11);
+
+  return (
+    <View style={{ width: PIE_CHART_SIZE, height: PIE_CHART_SIZE }}>
+      <PolarChart
+        data={rows}
+        labelKey="label"
+        valueKey="value"
+        colorKey="color"
+      >
+        <Pie.Chart innerRadius={0} size={PIE_CHART_SIZE}>
+          {({ slice }) => {
+            const pct =
+              pieTotalCents > 0
+                ? Math.round((slice.value / pieTotalCents) * 100)
+                : 0;
+            const showPct = font != null && slice.sweepAngle >= 13;
+            return (
+              <Pie.Slice>
+                {showPct ? (
+                  <Pie.Label
+                    font={font}
+                    radiusOffset={0.5}
+                    color={PIE_CHART_LABEL_COLOR}
+                    text={`${pct}%`}
+                  />
+                ) : null}
+              </Pie.Slice>
+            );
+          }}
+        </Pie.Chart>
+      </PolarChart>
+    </View>
+  );
+}
 
 const GRANULARITIES: { id: Granularity; label: string }[] = [
   { id: "day", label: "日" },
@@ -127,8 +187,8 @@ function SegmentedTabs(props: {
 
   useEffect(() => {
     progress.value = withTiming(activeIndex, {
-      duration: 320,
-      easing: Easing.inOut(Easing.quad),
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
     });
   }, [activeIndex, progress]);
 
@@ -146,13 +206,9 @@ function SegmentedTabs(props: {
   });
 
   return (
-    <GlassPanel
-      intensity={32}
-      className="overflow-hidden rounded-2xl"
-      style={{ padding: 4 }}
-    >
+    <GlassPanel intensity={32} style={ledgerStyles.segmentGlass}>
       <View
-        className="relative flex-row"
+        style={ledgerStyles.segmentRow}
         onLayout={(e) => setW(e.nativeEvent.layout.width)}
       >
         {/* active pill */}
@@ -181,23 +237,27 @@ function SegmentedTabs(props: {
             <Pressable
               key={t.id}
               onPress={() => {
-                // keep press response immediate; animate pill, then update content.
-                progress.value = withTiming(
-                  Math.max(
-                    0,
-                    GRANULARITIES.findIndex((x) => x.id === t.id)
-                  ),
-                  { duration: 260, easing: Easing.inOut(Easing.quad) },
-                  () => runOnJS(props.onChange)(t.id)
+                const idx = Math.max(
+                  0,
+                  GRANULARITIES.findIndex((x) => x.id === t.id)
                 );
+                progress.value = withTiming(idx, {
+                  duration: 240,
+                  easing: Easing.out(Easing.cubic),
+                });
+                props.onChange(t.id);
               }}
-              className="flex-1 items-center justify-center px-3 py-2 active:opacity-90"
+              style={ledgerStyles.segmentHit}
             >
               <Text
-                className="text-[13px]"
-                style={{
-                  color: active ? "rgba(18,22,16,0.88)" : "rgba(15,18,14,0.52)",
-                }}
+                style={[
+                  ledgerStyles.segmentLabel,
+                  {
+                    color: active
+                      ? "rgba(18,22,16,0.88)"
+                      : "rgba(15,18,14,0.52)",
+                  },
+                ]}
               >
                 {t.label}
               </Text>
@@ -273,20 +333,20 @@ export default function LedgerScreen() {
 
   const pieData = useMemo(() => {
     if (shownBreakdown.length === 0) return [];
-    const colors = [
-      "rgba(171,121,66,0.95)",
-      "rgba(122,105,89,0.85)",
-      "rgba(236,223,205,0.95)",
-      "rgba(208,190,170,0.95)",
-      "rgba(163,47,45,0.80)",
-      "rgba(28,24,20,0.55)",
-    ];
     return shownBreakdown.map((x, i) => ({
       value: Math.max(0, x.value),
       text: x.label,
-      color: colors[i % colors.length],
+      color:
+        kindForBreakdown === "expense"
+          ? pieColorForExpenseCategoryLabel(x.label)
+          : INCOME_PIE_COLORS[i % INCOME_PIE_COLORS.length],
     }));
-  }, [shownBreakdown]);
+  }, [shownBreakdown, kindForBreakdown]);
+
+  const pieTotalCents = useMemo(
+    () => pieData.reduce((acc, x) => acc + x.value, 0),
+    [pieData]
+  );
 
   const hasAnyData =
     shownSummary.expenseCents > 0 || shownSummary.incomeCents > 0;
@@ -310,36 +370,40 @@ export default function LedgerScreen() {
     return Array.from(set).sort((a, b) => a - b);
   }, [g, shownTrend.length]);
 
-  // soften the perceived "flash" when switching segmented tabs
-  const contentT = useSharedValue(1);
-  useEffect(() => {
-    // tie the transition to granularity changes
-    void g;
-    contentT.value = 0;
-    contentT.value = withTiming(1, {
-      duration: 260,
-      easing: Easing.inOut(Easing.quad),
-    });
-  }, [g, contentT]);
+  /** 折线最高点（按支出金额分）；用于在峰顶标注金额 */
+  const trendPeak = useMemo(() => {
+    if (shownTrend.length === 0) return null;
+    let idx = 0;
+    let maxV = shownTrend[0]?.value ?? 0;
+    for (let i = 1; i < shownTrend.length; i++) {
+      const v = shownTrend[i]?.value ?? 0;
+      if (v > maxV) {
+        maxV = v;
+        idx = i;
+      }
+    }
+    return { index: idx, cents: maxV };
+  }, [shownTrend]);
 
-  const contentAnimStyle = useAnimatedStyle(() => {
-    const o = interpolate(contentT.value, [0, 1], [0.86, 1]);
-    const y = interpolate(contentT.value, [0, 1], [2, 0]);
-    return { opacity: o, transform: [{ translateY: y }] };
-  });
+  const trendPeakLabelFont = useFont(
+    require("../../assets/fonts/DINPro-Medium.otf"),
+    11
+  );
 
   return (
     <AuroraBackground variant="clean" decorations={false}>
       <View
-        className="flex-1 px-5"
-        style={{ paddingTop: Math.max(16, insets.top + 10) }}
+        style={[
+          ledgerStyles.rootColumn,
+          { paddingTop: Math.max(16, insets.top + 10) },
+        ]}
       >
         {/* fixed segmented tabs */}
         <SegmentedTabs value={g} onChange={(v) => setG(v)} />
 
         {/* scrollable content below tabs */}
         <ScrollView
-          className="flex-1"
+          style={ledgerStyles.scroll}
           contentContainerStyle={{
             paddingTop: 16,
             // leave room for bottom tab bar + safe area so last card isn't covered
@@ -349,81 +413,50 @@ export default function LedgerScreen() {
           }}
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View className="gap-4" style={contentAnimStyle}>
-            <View className="flex-row items-center justify-between">
+          <View style={ledgerStyles.stackGap16}>
+            <View style={ledgerStyles.rowBetween}>
               <Pressable
                 onPress={onPrev}
-                className="h-9 w-9 items-center justify-center rounded-full bg-accent/35 active:opacity-90"
+                style={ledgerStyles.navRoundBtn}
                 accessibilityLabel="上一段时间"
               >
                 <ChevronLeft size={18} color="rgba(28,24,20,0.85)" />
               </Pressable>
 
-              <Text className="text-[14px] font-sansMedium text-foreground/90">
-                {title}
-              </Text>
+              <Text style={ledgerStyles.rangeTitle}>{title}</Text>
 
               <Pressable
                 onPress={onNext}
-                className="h-9 w-9 items-center justify-center rounded-full bg-accent/35 active:opacity-90"
+                style={ledgerStyles.navRoundBtn}
                 accessibilityLabel="下一段时间"
               >
                 <ChevronRight size={18} color="rgba(28,24,20,0.85)" />
               </Pressable>
             </View>
 
-            <GlassPanel className="px-5 py-5">
-              <View className="gap-3">
-                <Text
-                  className="text-[12px] tracking-[1.4px] font-sansMedium"
-                  style={{ color: "rgba(15,18,14,0.54)" }}
-                >
-                  本期汇总
-                </Text>
-                <View className="flex-row items-baseline justify-between">
-                  <View className="flex-1">
-                    <Text
-                      className="text-[12px]"
-                      style={{ color: "rgba(15,18,14,0.50)" }}
-                    >
-                      支出
-                    </Text>
-                    <Text
-                      className="mt-1 text-[18px] font-sansMedium"
-                      style={{ color: "rgba(18,22,16,0.90)" }}
-                    >
+            <GlassPanel style={ledgerStyles.glassPad20}>
+              <View style={ledgerStyles.cardStackGap12}>
+                <Text style={ledgerStyles.sectionEyebrow}>本期汇总</Text>
+                <View style={ledgerStyles.summaryRow}>
+                  <View style={ledgerStyles.summaryCol}>
+                    <Text style={ledgerStyles.summaryLabel}>支出</Text>
+                    <Text style={ledgerStyles.summaryValue}>
                       {loading && shownSummary.expenseCents === 0
                         ? "…"
                         : formatCny(shownSummary.expenseCents)}
                     </Text>
                   </View>
-                  <View className="flex-1">
-                    <Text
-                      className="text-[12px]"
-                      style={{ color: "rgba(15,18,14,0.50)" }}
-                    >
-                      收入
-                    </Text>
-                    <Text
-                      className="mt-1 text-[18px] font-sansMedium"
-                      style={{ color: "rgba(18,22,16,0.90)" }}
-                    >
+                  <View style={ledgerStyles.summaryCol}>
+                    <Text style={ledgerStyles.summaryLabel}>收入</Text>
+                    <Text style={ledgerStyles.summaryValue}>
                       {loading && shownSummary.incomeCents === 0
                         ? "…"
                         : formatCny(shownSummary.incomeCents)}
                     </Text>
                   </View>
-                  <View className="flex-1">
-                    <Text
-                      className="text-[12px]"
-                      style={{ color: "rgba(15,18,14,0.50)" }}
-                    >
-                      结余
-                    </Text>
-                    <Text
-                      className="mt-1 text-[18px] font-sansMedium"
-                      style={{ color: "rgba(18,22,16,0.90)" }}
-                    >
+                  <View style={ledgerStyles.summaryCol}>
+                    <Text style={ledgerStyles.summaryLabel}>结余</Text>
+                    <Text style={ledgerStyles.summaryValue}>
                       {loading && shownSummary.netCents === 0
                         ? "…"
                         : formatCny(Math.abs(shownSummary.netCents))}
@@ -433,36 +466,59 @@ export default function LedgerScreen() {
               </View>
             </GlassPanel>
 
-            <GlassPanel className="px-4 py-4">
-              <Text className="text-[13px] font-sansMedium text-foreground/90">
-                趋势
-              </Text>
+            <GlassPanel style={ledgerStyles.glassPad16}>
+              <Text style={ledgerStyles.sectionTitle}>趋势</Text>
               {error ? (
-                <Text className="mt-1 text-[12px] text-destructive">
-                  {error}
-                </Text>
+                <Text style={ledgerStyles.errorText}>{error}</Text>
               ) : null}
               {shownTrend.length === 0 && !loading ? (
-                <Text
-                  variant="muted"
-                  className="mt-4 text-[12px] leading-[16px]"
-                >
+                <Text variant="muted" style={ledgerStyles.mutedSmall}>
                   该时间段暂无记录
                 </Text>
               ) : shownTrend.length > 0 ? (
-                <View className="mt-4">
+                <View style={ledgerStyles.chartWrap}>
                   <View style={{ height: 190 }}>
                     <CartesianChart
                       data={trendYuan}
                       xKey="x"
                       yKeys={["y"]}
-                      padding={{ left: 8, right: 8, top: 10, bottom: 10 }}
+                      padding={{ left: 8, right: 8, top: 22, bottom: 10 }}
                       domainPadding={{
                         left: 14,
                         right: 14,
-                        top: 10,
+                        top: 18,
                         bottom: 10,
                       }}
+                      renderOutside={
+                        trendPeak && trendPeakLabelFont
+                          ? ({ points }) => {
+                              const pt = points.y[trendPeak.index];
+                              if (
+                                pt == null ||
+                                pt.y == null ||
+                                typeof pt.x !== "number"
+                              ) {
+                                return null;
+                              }
+                              const label = formatCny(trendPeak.cents);
+                              const tw = skiaTextWidth(
+                                label,
+                                trendPeakLabelFont
+                              );
+                              return (
+                                <Group>
+                                  <SkiaText
+                                    font={trendPeakLabelFont}
+                                    text={label}
+                                    x={pt.x - tw / 2}
+                                    y={pt.y - 16}
+                                    color="rgba(28, 32, 38, 0.88)"
+                                  />
+                                </Group>
+                              );
+                            }
+                          : undefined
+                      }
                     >
                       {({ points }) => (
                         <Line
@@ -490,8 +546,10 @@ export default function LedgerScreen() {
                       {tickIndex.map((i) => (
                         <Text
                           key={i}
-                          className="text-[10px]"
-                          style={{ color: "rgba(15,18,14,0.44)" }}
+                          style={[
+                            ledgerStyles.tickLabel,
+                            { color: "rgba(15,18,14,0.44)" },
+                          ]}
                         >
                           {shownTrend[i]?.label ?? ""}
                         </Text>
@@ -521,10 +579,7 @@ export default function LedgerScreen() {
                             borderColor: "rgba(255,255,255,0.26)",
                           }}
                         >
-                          <Text
-                            className="text-[12px]"
-                            style={{ color: "rgba(15,18,14,0.52)" }}
-                          >
+                          <Text style={ledgerStyles.loadingCapsuleText}>
                             更新中…
                           </Text>
                         </View>
@@ -533,35 +588,39 @@ export default function LedgerScreen() {
                   </View>
                 </View>
               ) : (
-                <View className="mt-4 h-32 rounded-xl bg-accent/25" />
+                <View style={ledgerStyles.placeholderTrend} />
               )}
             </GlassPanel>
 
-            <GlassPanel className="px-4 pt-4 pb-6">
-              <Text className="text-[13px] font-sansMedium text-foreground/90">
-                分类占比
+            <GlassPanel style={ledgerStyles.glassPad16TopWide}>
+              <Text style={ledgerStyles.sectionTitle}>
+                {!hasAnyData || kindForBreakdown === "expense"
+                  ? "消费分类占比"
+                  : "收入分类占比"}
               </Text>
               {hasAnyData ? (
-                <View className="mt-3 flex-row gap-2">
+                <View style={ledgerStyles.chipRow}>
                   <Pressable
                     onPress={() => setKindForBreakdown("expense")}
-                    className={`rounded-full px-3 py-1.5 active:opacity-90 ${
+                    style={[
+                      ledgerStyles.chipBase,
                       kindForBreakdown === "expense"
-                        ? "bg-accent/60"
-                        : "bg-accent/25"
-                    }`}
+                        ? ledgerStyles.chipOn
+                        : ledgerStyles.chipOff,
+                    ]}
                   >
-                    <Text className="text-[12px] text-foreground/85">支出</Text>
+                    <Text style={ledgerStyles.chipLabel}>支出</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => setKindForBreakdown("income")}
-                    className={`rounded-full px-3 py-1.5 active:opacity-90 ${
+                    style={[
+                      ledgerStyles.chipBase,
                       kindForBreakdown === "income"
-                        ? "bg-accent/60"
-                        : "bg-accent/25"
-                    }`}
+                        ? ledgerStyles.chipOn
+                        : ledgerStyles.chipOff,
+                    ]}
                   >
-                    <Text className="text-[12px] text-foreground/85">收入</Text>
+                    <Text style={ledgerStyles.chipLabel}>收入</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -569,80 +628,71 @@ export default function LedgerScreen() {
               {loading ? (
                 <Text
                   variant="muted"
-                  className="mt-2 text-[12px] leading-[16px]"
+                  style={{ marginTop: 8, fontSize: 12, lineHeight: 16 }}
                 >
                   图表加载中…
                 </Text>
               ) : null}
               {pieData.length === 0 && !loading ? (
-                <Text
-                  variant="muted"
-                  className="mt-4 text-[12px] leading-[16px]"
-                >
+                <Text variant="muted" style={ledgerStyles.mutedSmall}>
                   该时间段暂无记录
                 </Text>
               ) : pieData.length > 0 ? (
-                <View className="mt-4 items-center justify-center">
+                <View style={ledgerStyles.pieOuter}>
                   <View
                     style={{
-                      width: 168,
-                      height: 168,
-                      // ensure the Skia surface visually matches the panel background
+                      width: PIE_CHART_SIZE,
+                      height: PIE_CHART_SIZE,
+                      justifyContent: "center",
+                      alignItems: "center",
                       backgroundColor: "rgba(236, 243, 232, 0.72)",
                       borderRadius: 999,
-                      overflow: "hidden",
                     }}
                   >
-                    <PolarChart
-                      data={shownBreakdown.map((x, idx) => ({
-                        label: x.label,
-                        value: Math.max(0, x.value),
-                        color:
-                          pieData[idx % pieData.length]?.color ??
-                          "rgba(171,121,66,0.92)",
+                    <LedgerPieChart
+                      rows={pieData.map((p) => ({
+                        label: p.text,
+                        value: p.value,
+                        color: p.color,
                       }))}
-                      labelKey="label"
-                      valueKey="value"
-                      colorKey="color"
-                    >
-                      <Pie.Chart innerRadius={56} size={168}>
-                        {() => <Pie.Slice />}
-                      </Pie.Chart>
-                    </PolarChart>
-                    <View
-                      pointerEvents="none"
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        left: 0,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text
-                        className="text-[12px]"
-                        style={{ color: "rgba(15,18,14,0.50)" }}
+                      pieTotalCents={pieTotalCents}
+                    />
+                  </View>
+
+                  <View style={ledgerStyles.legendWrap}>
+                    {pieData.map((p) => (
+                      <View
+                        key={`${p.text}-${p.value}`}
+                        style={ledgerStyles.legendRow}
                       >
-                        {kindForBreakdown === "expense" ? "支出" : "收入"}
-                      </Text>
-                      <Text
-                        className="mt-1 text-[14px] font-sansMedium"
-                        style={{ color: "rgba(18,22,16,0.90)" }}
-                      >
-                        {formatCny(
-                          shownBreakdown.reduce((acc, x) => acc + x.value, 0)
-                        )}
-                      </Text>
-                    </View>
+                        <View style={ledgerStyles.legendLeft}>
+                          <View
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: 3,
+                              backgroundColor: p.color,
+                            }}
+                          />
+                          <Text
+                            style={ledgerStyles.legendName}
+                            numberOfLines={1}
+                          >
+                            {p.text}
+                          </Text>
+                        </View>
+                        <Text style={ledgerStyles.legendAmt} numberOfLines={1}>
+                          {formatCny(p.value)}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 </View>
               ) : (
-                <View className="mt-4 h-40 rounded-xl bg-accent/25" />
+                <View style={ledgerStyles.placeholderPie} />
               )}
             </GlassPanel>
-          </Animated.View>
+          </View>
         </ScrollView>
       </View>
     </AuroraBackground>

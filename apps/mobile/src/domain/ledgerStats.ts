@@ -1,4 +1,5 @@
 import { getDb } from "@/src/db/db";
+import { displayLabelForStoredCategory } from "@/src/domain/spendCategories";
 
 export type Granularity = "day" | "week" | "month" | "year";
 export type TxKind = "expense" | "income";
@@ -128,10 +129,21 @@ export async function getCategoryBreakdown(
      ORDER BY s DESC`,
     [range.startMs, range.endMs, kind],
   );
-  const list = (rows ?? []).map((r) => ({
-    label: r.category,
-    value: r.s ?? 0,
+  // 支出：同一消费类型可能曾以英文 id / 中文 label 混存，合并后再排序取 Top N
+  const merged = new Map<string, number>();
+  for (const r of rows ?? []) {
+    const raw = typeof r.category === "string" ? r.category : "";
+    const label =
+      kind === "expense"
+        ? displayLabelForStoredCategory(raw)
+        : raw.trim() || "未分类";
+    merged.set(label, (merged.get(label) ?? 0) + (r.s ?? 0));
+  }
+  const list = Array.from(merged.entries()).map(([label, value]) => ({
+    label,
+    value,
   }));
+  list.sort((a, b) => b.value - a.value);
   if (list.length <= limit) return list;
 
   const top = list.slice(0, limit);

@@ -11,7 +11,11 @@ import type { ComponentType } from "react";
 import { SpendCategorySheet } from "@/components/home/SpendCategorySheet";
 import { useColorScheme } from "@/components/useColorScheme";
 import EmptySvg from "@/assets/svgs/empty.svg";
-import { computeBudgetSnapshot } from "@/src/domain/budget";
+import { computeBudgetSnapshot, type BudgetInputs } from "@/src/domain/budget";
+import {
+  defaultBudgetInputs,
+  loadBudgetInputs,
+} from "@/src/domain/userBudgetSettings";
 import { formatCny } from "@/src/domain/money";
 import { Text } from "@/components/ui/text";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -24,6 +28,8 @@ import {
   type LocalTransactionRow,
 } from "@/src/domain/localTransactions";
 import { formatCompactSignedYuan } from "@/src/domain/moneyDisplay";
+import { useDb } from "@/src/db/DbProvider";
+import { todayStyles } from "@/src/screenStyles/todayTab.styles";
 
 // NOTE: `@expo/ui/swift-ui` is iOS-only. Importing it on web will crash at runtime.
 
@@ -168,6 +174,10 @@ export default function TodayScreen() {
   const [rows, setRows] = useState<LocalTransactionRow[]>([]);
   const [todaySpentCents, setTodaySpentCents] = useState(0);
   const [monthSpentCents, setMonthSpentCents] = useState(0);
+  const [budgetInputs, setBudgetInputs] = useState<BudgetInputs>(
+    defaultBudgetInputs,
+  );
+  const { ready: dbReady } = useDb();
 
   const loadForDate = useCallback(async () => {
     let cancelled = false;
@@ -191,10 +201,18 @@ export default function TodayScreen() {
     void loadForDate();
   }, [loadForDate]);
 
+  useEffect(() => {
+    if (!dbReady) return;
+    void loadBudgetInputs().then(setBudgetInputs);
+  }, [dbReady]);
+
   useFocusEffect(
     useCallback(() => {
       void loadForDate();
-    }, [loadForDate])
+      if (dbReady) {
+        void loadBudgetInputs().then(setBudgetInputs);
+      }
+    }, [loadForDate, dbReady])
   );
 
   const onDeleteTx = useCallback(
@@ -212,16 +230,12 @@ export default function TodayScreen() {
   );
 
   const snapshot = computeBudgetSnapshot({
-    inputs: {
-      budgetMode: "manual_spend_cap",
-      monthlySpendCapCents: 300000,
-      monthlyIncomeCents: 0,
-      monthlySavingGoalCents: 0,
-      rewardRatio: 0.1,
-    },
-    now: today,
+    inputs: budgetInputs,
+    now: selectedDate,
     monthSpentCents,
   });
+
+  const budgetConfigured = budgetInputs.monthlySpendCapCents > 0;
 
   const monthProgress =
     snapshot.monthlyBudgetCents <= 0
@@ -262,19 +276,21 @@ export default function TodayScreen() {
   return (
     <AuroraBackground>
       <ScrollView
-        className="px-5"
+        style={todayStyles.scrollPad}
         contentContainerStyle={{
           paddingTop: Math.max(18, insets.top + 12),
           paddingBottom: Math.max(24, insets.bottom + 24),
         }}
       >
-        <View className="gap-4">
+        <View style={todayStyles.stackGap16}>
           {/* header */}
-          <View className="gap-1.5">
-            <View className="flex-row items-center justify-between">
+          <View style={todayStyles.stackGap6}>
+            <View style={todayStyles.headerRow}>
               <Text
-                className="text-[12px] tracking-[1.6px]"
-                style={{ color: "rgba(15,18,14,0.52)" }}
+                style={[
+                  todayStyles.dateEyebrow,
+                  { color: "rgba(15,18,14,0.52)" },
+                ]}
               >
                 {formatTodayDateEn(selectedDate)}
               </Text>
@@ -283,16 +299,18 @@ export default function TodayScreen() {
                   <Swift.Menu
                     label={
                       <View
-                        className="h-10 w-10 items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor: "rgba(255,255,255,0.18)",
-                          borderWidth: 1,
-                          borderColor: "rgba(255,255,255,0.34)",
-                          shadowColor: "rgba(0,0,0,1)",
-                          shadowOpacity: 0.06,
-                          shadowRadius: 14,
-                          shadowOffset: { width: 0, height: 8 },
-                        }}
+                        style={[
+                          todayStyles.fabCircle,
+                          {
+                            backgroundColor: "rgba(255,255,255,0.18)",
+                            borderWidth: 1,
+                            borderColor: "rgba(255,255,255,0.34)",
+                            shadowColor: "rgba(0,0,0,1)",
+                            shadowOpacity: 0.06,
+                            shadowRadius: 14,
+                            shadowOffset: { width: 0, height: 8 },
+                          },
+                        ]}
                       >
                         <Plus
                           size={22}
@@ -327,17 +345,19 @@ export default function TodayScreen() {
                     setPendingKind("expense");
                     setCategorySheetOpen(true);
                   }}
-                  className="h-10 w-10 items-center justify-center rounded-full active:opacity-90"
                   hitSlop={10}
-                  style={{
-                    backgroundColor: "rgba(255,255,255,0.18)",
-                    borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.34)",
-                    shadowColor: "rgba(0,0,0,1)",
-                    shadowOpacity: 0.06,
-                    shadowRadius: 14,
-                    shadowOffset: { width: 0, height: 8 },
-                  }}
+                  style={[
+                    todayStyles.fabCircle,
+                    {
+                      backgroundColor: "rgba(255,255,255,0.18)",
+                      borderWidth: 1,
+                      borderColor: "rgba(255,255,255,0.34)",
+                      shadowColor: "rgba(0,0,0,1)",
+                      shadowOpacity: 0.06,
+                      shadowRadius: 14,
+                      shadowOffset: { width: 0, height: 8 },
+                    },
+                  ]}
                 >
                   <Plus
                     size={22}
@@ -351,13 +371,10 @@ export default function TodayScreen() {
             {/* date bar */}
             <Pressable
               onPress={() => setDateSheetOpen(true)}
-              className="self-start flex-row items-center justify-start gap-1.5 py-1 active:opacity-85"
+              style={todayStyles.dateBarPress}
               accessibilityLabel="选择日期"
             >
-              <Text
-                className="text-[13px] font-sansMedium"
-                style={{ color: "rgba(18,22,16,0.78)" }}
-              >
+              <Text style={todayStyles.dateBarText}>
                 {formatDateBar(selectedDate)}
               </Text>
               <ChevronDown size={14} color="rgba(18,22,16,0.42)" />
@@ -365,65 +382,84 @@ export default function TodayScreen() {
           </View>
 
           {/* hero (glass, no card borders) */}
-          <GlassPanel className="px-5 pt-4 pb-5">
-            <View className="flex-row items-center justify-between gap-4">
-              <View className="flex-1 gap-1">
+          <GlassPanel style={todayStyles.heroGlass}>
+            <View style={todayStyles.heroRow}>
+              <View style={todayStyles.heroLeft}>
                 <Text
-                  style={{ color: hero.muted }}
-                  className="text-[12px] tracking-[1.4px] font-sansMedium"
+                  style={[todayStyles.heroEyebrow, { color: hero.muted }]}
                 >
                   今日支出
                 </Text>
-                <View className="flex-row items-baseline">
+                <View style={todayStyles.heroBaseline}>
                   <Text
-                    className="text-[18px] leading-[26px]"
-                    style={{
-                      color: hero.text,
-                      marginRight: 2,
-                      ...amountFont,
-                      opacity: 0.86,
-                    }}
+                    style={[
+                      todayStyles.heroYuan,
+                      {
+                        color: hero.text,
+                        marginRight: 2,
+                        ...amountFont,
+                        opacity: 0.86,
+                      },
+                    ]}
                   >
                     ¥
                   </Text>
                   <Text
-                    className="text-left text-[34px] leading-[38px] tracking-[-0.8px]"
-                    style={{ color: hero.text, ...amountFont }}
+                    style={[
+                      todayStyles.heroBigAmt,
+                      { color: hero.text, ...amountFont },
+                    ]}
                   >
                     {formatCny(todaySpentCents)}
                   </Text>
                 </View>
 
-                <View className="h-3" />
+                <View style={todayStyles.spacer12} />
 
                 <Text
-                  style={{ color: hero.muted }}
-                  className="text-[12px] tracking-[1.4px] font-sansMedium"
+                  style={[todayStyles.heroEyebrow, { color: hero.muted }]}
                 >
                   本月剩余预算
                 </Text>
-                <View className="flex-row items-baseline">
-                  <Text
-                    className="text-[14px] leading-[20px]"
-                    style={{
-                      color: hero.text,
-                      marginRight: 2,
-                      ...amountFont,
-                      opacity: 0.84,
-                    }}
+                {budgetConfigured ? (
+                  <View style={todayStyles.heroBaseline}>
+                    <Text
+                      style={[
+                        {
+                          fontSize: 14,
+                          lineHeight: 20,
+                          color: hero.text,
+                          marginRight: 2,
+                          ...amountFont,
+                          opacity: 0.84,
+                        },
+                      ]}
+                    >
+                      ¥
+                    </Text>
+                    <Text
+                      style={[
+                        todayStyles.heroSmallAmt,
+                        { color: hero.text, ...amountFont },
+                      ]}
+                    >
+                      {formatCny(snapshot.monthlyRemainingCents)}
+                    </Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel="设置月度预算"
+                    hitSlop={8}
+                    onPress={() => router.push("/budget-settings")}
+                    style={{ alignSelf: "flex-start", marginTop: 2 }}
                   >
-                    ¥
-                  </Text>
-                  <Text
-                    className="text-left text-[20px] leading-[24px] tracking-[-0.2px]"
-                    style={{ color: hero.text, ...amountFont }}
-                  >
-                    {formatCny(snapshot.monthlyRemainingCents)}
-                  </Text>
-                </View>
+                    <Text style={todayStyles.budgetSetupLink}>设置</Text>
+                  </Pressable>
+                )}
               </View>
 
-              <View className="items-center justify-center">
+              <View style={todayStyles.ringCol}>
                 <RingChart
                   progress={monthProgress}
                   size={88}
@@ -431,34 +467,25 @@ export default function TodayScreen() {
                   trackColor={hero.track}
                   progressColor={hero.ring}
                 />
-                <Text
-                  className="mt-2 text-[11px] tracking-[1.6px]"
-                  style={{ color: hero.muted }}
-                >
-                  {Math.round(monthProgress * 100)}% 已使用
+                <Text style={[todayStyles.ringCaption, { color: hero.muted }]}>
+                  {budgetConfigured
+                    ? `${Math.round(monthProgress * 100)}% 已使用`
+                    : "未设置"}
                 </Text>
               </View>
             </View>
           </GlassPanel>
 
           {/* list */}
-          <View className="gap-2">
+          <View style={todayStyles.listGap}>
             {rows.length === 0 ? (
-              <View className="px-2 py-10">
-                <View className="items-center">
+              <View style={todayStyles.emptyPad}>
+                <View style={todayStyles.emptyCenter}>
                   <View style={{ opacity: 0.6 }}>
                     <EmptySvg width={170} height={170} />
                   </View>
-                  <Text
-                    className="mt-5 text-center text-[12px] leading-[16px] tracking-[0.4px]"
-                    style={{ color: "rgba(15,18,14,0.46)" }}
-                  >
-                    还没有记账记录
-                  </Text>
-                  <Text
-                    className="mt-2 text-center text-[12px] leading-[16px]"
-                    style={{ color: "rgba(15,18,14,0.40)" }}
-                  >
+                  <Text style={todayStyles.emptyTitle}>还没有记账记录</Text>
+                  <Text style={todayStyles.emptySub}>
                     点击右上角 + 记一笔
                   </Text>
                 </View>
@@ -480,21 +507,18 @@ export default function TodayScreen() {
                         <Pressable
                           accessibilityLabel="删除记录"
                           onPress={() => void onDeleteTx(tx.id)}
-                          className="flex-1 items-center justify-center active:opacity-90"
+                          style={todayStyles.swipeDelHit}
                         >
-                          <Text className="text-[15px] font-sansMedium text-white">
-                            删除
-                          </Text>
+                          <Text style={todayStyles.swipeDelText}>删除</Text>
                         </Pressable>
                       </View>
                     )}
                   >
                     <View
-                      style={{
-                        // SwiftUI List-like: no outer card, rely on subtle tinted row background
-                        backgroundColor: "rgba(236, 243, 232, 0.58)",
-                      }}
-                      className="flex-row items-baseline justify-between px-4 py-3.5"
+                      style={[
+                        todayStyles.txRow,
+                        { backgroundColor: "rgba(236, 243, 232, 0.58)" },
+                      ]}
                     >
                       <View
                         pointerEvents="none"
@@ -507,19 +531,14 @@ export default function TodayScreen() {
                           backgroundColor: "rgba(15, 18, 14, 0.08)",
                         }}
                       />
+                      <Text style={todayStyles.txCat}>{tx.category}</Text>
                       <Text
-                        className="pr-3 text-[16px] font-sansMedium"
-                        style={{ color: "rgba(18,22,16,0.84)" }}
-                      >
-                        {tx.category}
-                      </Text>
-                      <Text
-                        className={`shrink-0 text-[17px] tracking-tight ${
+                        style={[
                           tx.kind === "expense"
-                            ? "text-emerald-700"
-                            : "text-red-700"
-                        }`}
-                        style={amountFont}
+                            ? todayStyles.txAmtExpense
+                            : todayStyles.txAmtIncome,
+                          amountFont,
+                        ]}
                       >
                         {formatCompactSignedYuan(tx.amount_cents, tx.kind)}
                       </Text>

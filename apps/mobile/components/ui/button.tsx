@@ -1,107 +1,129 @@
-import { TextClassContext } from '@/components/ui/text';
-import { cn } from '@/components/lib/utils';
-import { cva, type VariantProps } from 'class-variance-authority';
-import type * as React from 'react';
-import { Platform, Pressable } from 'react-native';
+import * as React from "react";
+import {
+  Pressable,
+  type PressableProps,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 
-const buttonVariants = cva(
-  cn(
-    'group shrink-0 flex-row items-center justify-center gap-2 rounded-sm',
-    Platform.select({
-      web: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-    })
-  ),
-  {
-    variants: {
-      variant: {
-        default: cn(
-          'bg-primary active:bg-primary/90',
-          Platform.select({ web: 'hover:bg-primary/90' })
-        ),
-        destructive: cn(
-          'bg-destructive active:bg-destructive/90',
-          Platform.select({
-            web: 'hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
-          })
-        ),
-        outline: cn(
-          'border-border bg-background active:bg-accent border',
-          Platform.select({
-            web: 'hover:bg-accent dark:hover:bg-input/50',
-          })
-        ),
-        secondary: cn(
-          'bg-secondary active:bg-secondary/80',
-          Platform.select({ web: 'hover:bg-secondary/80' })
-        ),
-        ghost: cn(
-          'active:bg-accent',
-          Platform.select({ web: 'hover:bg-accent dark:hover:bg-accent/50' })
-        ),
-        link: '',
-      },
-      size: {
-        default: cn('h-10 px-4 py-2 sm:h-9', Platform.select({ web: 'has-[>svg]:px-3' })),
-        sm: cn('h-9 gap-1.5 rounded-sm px-3 sm:h-8', Platform.select({ web: 'has-[>svg]:px-2.5' })),
-        lg: cn('h-11 rounded-sm px-6 sm:h-10', Platform.select({ web: 'has-[>svg]:px-4' })),
-        icon: 'h-10 w-10 sm:h-9 sm:w-9',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
-  }
-);
+import { TextStyleContext } from "@/components/ui/text";
+import { mergeView, ui } from "@/src/theme/rn";
 
-const buttonTextVariants = cva(
-  cn(
-    'text-foreground text-sm font-medium',
-    Platform.select({ web: 'pointer-events-none transition-colors' })
-  ),
-  {
-    variants: {
-      variant: {
-        default: 'text-primary-foreground',
-        destructive: 'text-white',
-        outline: cn(
-          'group-active:text-accent-foreground',
-          Platform.select({ web: 'group-hover:text-accent-foreground' })
-        ),
-        secondary: 'text-secondary-foreground',
-        ghost: 'group-active:text-accent-foreground',
-        link: cn(
-          'text-primary group-active:underline',
-          Platform.select({ web: 'underline-offset-4 hover:underline group-hover:underline' })
-        ),
-      },
-      size: {
-        default: '',
-        sm: '',
-        lg: '',
-        icon: '',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
-  }
-);
+type Variant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+type Size = "default" | "sm" | "lg" | "icon";
 
-type ButtonProps = React.ComponentProps<typeof Pressable> & VariantProps<typeof buttonVariants>;
+const containerByVariant: Record<Variant, ViewStyle> = {
+  default: {
+    backgroundColor: ui.primary,
+    borderRadius: 4,
+  },
+  destructive: {
+    backgroundColor: "#a32f2d",
+    borderRadius: 4,
+  },
+  outline: {
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: ui.background,
+    borderRadius: 4,
+  },
+  secondary: {
+    backgroundColor: ui.backgroundMuted,
+    borderRadius: 4,
+  },
+  ghost: {
+    backgroundColor: "transparent",
+    borderRadius: 4,
+  },
+  link: {
+    backgroundColor: "transparent",
+  },
+};
 
-function Button({ className, variant, size, ...props }: ButtonProps) {
+const containerBySize: Record<Size, ViewStyle> = {
+  default: {
+    minHeight: 40,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  sm: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 4,
+  },
+  lg: {
+    minHeight: 44,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 4,
+  },
+  icon: {
+    height: 40,
+    width: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 4,
+  },
+};
+
+const labelByVariant: Record<Variant, TextStyle> = {
+  default: { color: ui.primaryText, fontSize: 14, fontWeight: "600" },
+  destructive: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  outline: { color: ui.text, fontSize: 14, fontWeight: "600" },
+  secondary: { color: ui.text, fontSize: 14, fontWeight: "600" },
+  ghost: { color: ui.text, fontSize: 14, fontWeight: "600" },
+  link: {
+    color: ui.primary,
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+};
+
+type ButtonProps = PressableProps & {
+  variant?: Variant;
+  size?: Size;
+};
+
+function Button({
+  style,
+  disabled,
+  variant = "default",
+  size = "default",
+  ...props
+}: ButtonProps) {
+  const labelStyle = labelByVariant[variant];
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ variant, size })}>
+    <TextStyleContext.Provider value={labelStyle}>
       <Pressable
-        className={cn(props.disabled && 'opacity-50', buttonVariants({ variant, size }), className)}
         role="button"
+        disabled={disabled}
+        style={({ pressed }) =>
+          mergeView(
+            containerByVariant[variant],
+            containerBySize[size],
+            disabled ? { opacity: 0.5 } : undefined,
+            pressed && variant !== "link" ? { opacity: 0.92 } : undefined,
+            style as ViewStyle,
+          )
+        }
         {...props}
       />
-    </TextClassContext.Provider>
+    </TextStyleContext.Provider>
   );
 }
 
-export { Button, buttonTextVariants, buttonVariants };
+export { Button };
 export type { ButtonProps };

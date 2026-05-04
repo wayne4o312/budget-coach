@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   useColorScheme,
   useWindowDimensions,
   View,
@@ -14,6 +15,51 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SFSymbol } from "sf-symbols-typescript";
 
 import { Text } from "@/components/ui/text";
+import { fonts, ui } from "@/src/theme/rn";
+
+const abs = StyleSheet.absoluteFillObject;
+
+const iosSheet = StyleSheet.create({
+  flex1: { flex: 1 },
+  barHairline: {
+    width: "100%",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(208,190,170,0.6)",
+  },
+  titleBarRow: {
+    position: "relative",
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  titleCenter: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titleText: {
+    fontSize: 17,
+    fontFamily: fonts.sansMedium,
+    lineHeight: 20,
+    color: ui.text,
+  },
+  cancelCol: { alignItems: "flex-end", justifyContent: "center" },
+  cancelPress: { paddingVertical: 4 },
+  cancelText: {
+    fontSize: 16,
+    fontFamily: fonts.sansMedium,
+    lineHeight: 20,
+    color: "rgba(28,24,20,0.9)",
+  },
+  gridLabel: {
+    marginTop: 8,
+    fontSize: 12,
+    fontFamily: fonts.sansMedium,
+    color: "rgba(28,24,20,0.9)",
+  },
+
+});
 
 type Props = {
   open: boolean;
@@ -115,57 +161,52 @@ export function SpendCategorySheet({ open, onClose, kind, onSelect }: Props) {
     <Modal
       visible={open}
       transparent
-      animationType="fade"
+      /** 同 android：fade 关闭会挡住 quick-entry，直到动画播完 */
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View className="flex-1">
+      <View style={iosSheet.flex1}>
         <BlurView
           intensity={tint === "dark" ? 40 : 85}
           tint={tint}
-          className="absolute inset-0"
+          style={abs}
         />
-        <View className="absolute inset-0 bg-white/10" />
+        <View style={[abs, { backgroundColor: "rgba(255,255,255,0.10)" }]} />
 
-        <Pressable
-          className="absolute inset-0"
-          onPress={onClose}
-          accessibilityLabel="关闭菜单"
-        />
+        <Pressable style={abs} onPress={onClose} accessibilityLabel="关闭菜单" />
 
-        <View className="flex-1" pointerEvents="box-none">
+        <View style={iosSheet.flex1} pointerEvents="box-none">
           {/* 顶栏与分割线全屏宽（不受下方列表 margin 影响） */}
-          <View
-            className="w-full border-b border-border/60"
-            style={{ paddingTop: insets.top }}
-          >
+          <View style={[iosSheet.barHairline, { paddingTop: insets.top }]}>
             <View
-              className="relative min-h-[48px] flex-row items-center justify-end "
-              style={{ paddingHorizontal: sidePadding + 10 }}
+              style={[
+                iosSheet.titleBarRow,
+                { paddingHorizontal: sidePadding + 10 },
+              ]}
             >
-              {/* 标题：items-center 居中 */}
-              <View className="absolute inset-0 items-center justify-center">
-                <Text className="text-[17px] font-sansMedium leading-[20px] text-foreground">
+              <View style={iosSheet.titleCenter}>
+                <Text style={iosSheet.titleText}>
                   {(kind ?? "expense") === "income" ? "收入" : "支出"}
                 </Text>
               </View>
 
-              {/* 右侧取消 */}
-              <View className="items-end justify-center">
+              <View style={iosSheet.cancelCol}>
                 <Pressable
                   onPress={onClose}
                   accessibilityLabel="取消"
                   hitSlop={12}
-                  className="py-1 active:opacity-60"
+                  style={({ pressed }) => [
+                    iosSheet.cancelPress,
+                    pressed ? { opacity: 0.6 } : undefined,
+                  ]}
                 >
-                  <Text className="text-[16px] font-sansMedium leading-[20px] text-foreground/90">
-                    取消
-                  </Text>
+                  <Text style={iosSheet.cancelText}>取消</Text>
                 </Pressable>
               </View>
             </View>
           </View>
 
-          <View className="flex-1 bg-transparent">
+          <View style={[iosSheet.flex1, { backgroundColor: "transparent" }]}>
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{
@@ -213,14 +254,13 @@ export function SpendCategorySheet({ open, onClose, kind, onSelect }: Props) {
                           <Pressable
                             onPress={() => onSelect(c.label)}
                             accessibilityLabel={c.label}
-                            className="active:opacity-80"
-                            style={{
+                            style={({ pressed }) => ({
                               width: circleSize,
                               height: circleSize,
                               borderRadius: circleSize / 2,
                               alignItems: "center",
                               justifyContent: "center",
-                              // Use mostly-opaque fills so circles don't pick up the blurred background tint.
+                              opacity: pressed ? 0.8 : 1,
                               backgroundColor:
                                 scheme === "dark"
                                   ? "rgba(44,44,46,0.92)"
@@ -235,7 +275,7 @@ export function SpendCategorySheet({ open, onClose, kind, onSelect }: Props) {
                               shadowRadius: scheme === "dark" ? 8 : 6,
                               shadowOffset: { width: 0, height: 4 },
                               elevation: 3,
-                            }}
+                            })}
                           >
                             {/* subtle top highlight */}
                             <View
@@ -276,9 +316,7 @@ export function SpendCategorySheet({ open, onClose, kind, onSelect }: Props) {
                               />
                             </View>
                           </Pressable>
-                          <Text className="mt-2 text-[12px] font-sansMedium text-foreground/90">
-                            {c.label}
-                          </Text>
+                          <Text style={iosSheet.gridLabel}>{c.label}</Text>
                         </View>
                       ))}
                       {missing >= 1 ? (

@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/client";
+import { phoneNumberClient } from "better-auth/client/plugins";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
 
@@ -20,6 +21,7 @@ function createClient(storagePrefix: string) {
         storagePrefix,
         storage: SecureStore,
       }),
+      phoneNumberClient(),
     ],
   });
 }

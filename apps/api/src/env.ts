@@ -16,6 +16,13 @@ const EnvSchema = z.object({
   WECHAT_APP_SECRET: z.string().min(8).optional(),
   WECHAT_REDIRECT_URI: z.string().url().optional(),
   JWT_SECRET: z.string().min(16).optional(), // legacy (to remove after migration)
+  /** Optional: enable real SMS via Twilio (otherwise OTP is only logged in dev / fails loudly in prod without SMS). */
+  TWILIO_ACCOUNT_SID: z
+    .preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.string().min(10).optional()),
+  TWILIO_AUTH_TOKEN: z
+    .preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.string().min(10).optional()),
+  TWILIO_FROM: z
+    .preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.string().min(8).optional()),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

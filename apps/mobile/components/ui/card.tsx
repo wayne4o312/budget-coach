@@ -1,52 +1,69 @@
-import { Text, TextClassContext } from '@/components/ui/text';
-import { cn } from '@/components/lib/utils';
-import { View } from 'react-native';
+import * as React from "react";
+import { View, type ViewProps, type ViewStyle } from "react-native";
 
-function Card({ className, ...props }: React.ComponentProps<typeof View>) {
+import { Text, TextStyleContext } from "@/components/ui/text";
+import { mergeText, mergeView, ui } from "@/src/theme/rn";
+
+const cardBase: ViewStyle = {
+  backgroundColor: ui.card,
+  borderWidth: 1,
+  borderColor: ui.border,
+  borderRadius: 8,
+  paddingVertical: 24,
+  gap: 24,
+  flexDirection: "column",
+};
+
+function Card({ style, ...props }: ViewProps) {
   return (
-    <TextClassContext.Provider value="text-card-foreground">
-      <View
-        className={cn(
-          'bg-card border-border flex flex-col gap-6 rounded-lg border py-6',
-          className
-        )}
-        {...props}
-      />
-    </TextClassContext.Provider>
+    <TextStyleContext.Provider value={{ color: ui.text }}>
+      <View style={mergeView(cardBase, style)} {...props} />
+    </TextStyleContext.Provider>
   );
 }
 
-function CardHeader({ className, ...props }: React.ComponentProps<typeof View>) {
-  return <View className={cn('flex flex-col gap-1.5 px-6', className)} {...props} />;
+const headerStyle: ViewStyle = {
+  flexDirection: "column",
+  gap: 6,
+  paddingHorizontal: 24,
+};
+
+function CardHeader({ style, ...props }: ViewProps) {
+  return <View style={mergeView(headerStyle, style)} {...props} />;
 }
 
-function CardTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof Text>) {
+function CardTitle({ style, ...props }: React.ComponentProps<typeof Text>) {
   return (
     <Text
-      role="heading"
-      aria-level={3}
-      className={cn('font-semibold leading-[22px] pt-[1px]', className)}
+      accessibilityRole="header"
+      style={mergeText({ fontWeight: "600", paddingTop: 1 }, style)}
       {...props}
     />
   );
 }
 
-function CardDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof Text>) {
-  return <Text className={cn('text-muted-foreground text-sm', className)} {...props} />;
+function CardDescription({ style, ...props }: React.ComponentProps<typeof Text>) {
+  return (
+    <Text
+      variant="muted"
+      style={mergeText({ fontSize: 14 }, style)}
+      {...props}
+    />
+  );
 }
 
-function CardContent({ className, ...props }: React.ComponentProps<typeof View>) {
-  return <View className={cn('px-6', className)} {...props} />;
+function CardContent({ style, ...props }: ViewProps) {
+  return <View style={mergeView({ paddingHorizontal: 24 }, style)} {...props} />;
 }
 
-function CardFooter({ className, ...props }: React.ComponentProps<typeof View>) {
-  return <View className={cn('flex flex-row items-center px-6', className)} {...props} />;
+const footerStyle: ViewStyle = {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingHorizontal: 24,
+};
+
+function CardFooter({ style, ...props }: ViewProps) {
+  return <View style={mergeView(footerStyle, style)} {...props} />;
 }
 
 export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };

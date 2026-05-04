@@ -10,7 +10,6 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import "react-native-gesture-handler";
 import "react-native-reanimated";
-import "../global.css";
 import { PortalHost } from "@rn-primitives/portal";
 import { ToastProvider } from "@/src/ui/toast";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -41,6 +40,7 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { useColorScheme } from "@/components/useColorScheme";
 import { DbProvider } from "@/src/db/DbProvider";
+import { AppNotificationEffects } from "@/src/notifications/AppNotificationEffects";
 import { initNotificationRouting } from "@/src/notifications/notificationRouting";
 import { hydrateActiveAccountFromStorage } from "@/src/auth/accounts";
 
@@ -56,6 +56,9 @@ export const unstable_settings = {
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+/** 仅本次 App 进程内有效：冷启动播一次片头，回前台不重置 */
+let splashVideoCompletedThisProcess = false;
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -99,8 +102,15 @@ export default function RootLayout() {
       .finally(() => setAuthHydrated(true));
   }, []);
 
-  const [flowDone, setFlowDone] = useState(false);
+  const [flowDone, setFlowDone] = useState(splashVideoCompletedThisProcess);
   const flowStart = loaded && authHydrated;
+
+  useEffect(() => {
+    if (!flowStart) return;
+    if (splashVideoCompletedThisProcess) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [flowStart]);
 
   if (!flowStart) {
     // Keep native splash visible until we're ready.
@@ -114,7 +124,10 @@ export default function RootLayout() {
         <VideoSplash
           start={flowStart}
           onReady={() => SplashScreen.hideAsync()}
-          onDone={() => setFlowDone(true)}
+          onDone={() => {
+            splashVideoCompletedThisProcess = true;
+            setFlowDone(true);
+          }}
         />
       ) : null}
     </>
@@ -128,12 +141,21 @@ function RootLayoutNav() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <DbProvider>
         <ToastProvider>
+          <AppNotificationEffects />
           <ThemeProvider
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
           >
             
               <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="quick-entry"
+                  options={{
+                    headerShown: false,
+                    presentation: "fullScreenModal",
+                    animation: "none",
+                  }}
+                />
                 <Stack.Screen
                   name="modal"
                   options={{ presentation: "modal" }}

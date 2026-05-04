@@ -16,6 +16,8 @@ router.get("/", requireAuth, async (c) => {
     .select({
       id: schema.user.id,
       email: schema.user.email,
+      phoneNumber: schema.user.phoneNumber,
+      phoneNumberVerified: schema.user.phoneNumberVerified,
       name: schema.user.name,
       nickname: schema.user.nickname,
       title: schema.user.title,

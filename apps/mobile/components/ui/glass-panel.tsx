@@ -2,25 +2,20 @@ import { BlurView } from "expo-blur";
 import type { PropsWithChildren } from "react";
 import { Platform, View, type ViewStyle } from "react-native";
 
-import { cn } from "@/components/lib/utils";
-
 type GlassPanelProps = PropsWithChildren<{
-  className?: string;
   style?: ViewStyle | ViewStyle[];
   intensity?: number;
 }>;
 
 export function GlassPanel({
   children,
-  className,
   style,
   intensity = 30,
 }: GlassPanelProps) {
   const baseStyle: ViewStyle = {
+    position: "relative",
     borderRadius: 18,
     overflow: "hidden",
-    // No hard border: rely on translucency + highlight + shadow for depth
-    // Use warm mint-beige tint (not pure white) for premium separation
     backgroundColor: "rgba(236, 243, 232, 0.72)",
     shadowColor: "rgba(0,0,0,1)",
     shadowOpacity: 0.06,
@@ -29,7 +24,7 @@ export function GlassPanel({
   };
 
   return (
-    <View className={cn("relative", className)} style={[baseStyle, style]}>
+    <View style={[baseStyle, style]}>
       {Platform.OS === "ios" ? (
         <BlurView
           intensity={intensity}
@@ -38,7 +33,6 @@ export function GlassPanel({
         />
       ) : null}
 
-      {/* top highlight */}
       <View
         pointerEvents="none"
         style={{

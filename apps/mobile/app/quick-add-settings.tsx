@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import {
   listQuickAddSlots,
   saveQuickAddSlots,
 } from "@/src/domain/quickAdd";
+import { Palette } from "@/src/theme/palette";
+import { mergeView, ui } from "@/src/theme/rn";
 
 type SlotDraft = Omit<QuickAddSlot, "id"> & { id?: string };
 
@@ -28,6 +30,49 @@ function parseAmounts(input: string): number[] {
 
 const CATEGORY_OPTIONS = ["餐饮", "出行", "生活", "其他"] as const;
 type CategoryOption = (typeof CATEGORY_OPTIONS)[number];
+
+const s = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: ui.background, paddingHorizontal: 20, paddingVertical: 20 },
+  stack: { gap: 16 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  backBtn: {
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: ui.card,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  err: { color: Palette.destructive },
+  cardContent: { gap: 12 },
+  lead: { lineHeight: 18 },
+  slotStack: { gap: 12 },
+  slotBlock: { gap: 12 },
+  rowBetween: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rowGap2: { flexDirection: "row", gap: 8 },
+  btnRow: { flexDirection: "row", gap: 8 },
+  chip: {
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chipOn: { borderColor: ui.text, backgroundColor: ui.backgroundMuted },
+  chipOff: { borderColor: ui.border, backgroundColor: ui.card },
+  flexChip: { flex: 1 },
+  wrapGap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  gap2: { gap: 8 },
+  gap3: { gap: 12 },
+  muteLead: { lineHeight: 18 },
+});
 
 export default function QuickAddSettingsScreen() {
   const [ready, setReady] = useState(false);
@@ -45,19 +90,18 @@ export default function QuickAddSettingsScreen() {
         if (cancelled) return;
         setReady(true);
         setDrafts(
-          slots.map((s) => ({
-            id: s.id,
-            position: s.position,
-            kind: s.kind,
-            sceneId: s.sceneId ?? null,
-            customTitle: s.customTitle ?? null,
-            customCategory: s.customCategory ?? null,
-            customIcon: s.customIcon ?? null,
-            suggestedAmounts: s.suggestedAmounts ?? [],
+          slots.map((sl) => ({
+            id: sl.id,
+            position: sl.position,
+            kind: sl.kind,
+            sceneId: sl.sceneId ?? null,
+            customTitle: sl.customTitle ?? null,
+            customCategory: sl.customCategory ?? null,
+            customIcon: sl.customIcon ?? null,
+            suggestedAmounts: sl.suggestedAmounts ?? [],
           })),
         );
       } catch {
-        // Not logged in yet, or table not ready.
         if (cancelled) return;
         setReady(false);
         setAuthError("请先登录后再配置 Quick Add。");
@@ -84,7 +128,6 @@ export default function QuickAddSettingsScreen() {
       const copy = [...prev].sort((a, b) => a.position - b.position);
       const a = copy[idx];
       const b = copy[j];
-      // swap positions
       const swapped = copy.map((x) => {
         if (x.position === a.position) return { ...x, position: b.position };
         if (x.position === b.position) return { ...x, position: a.position };
@@ -138,51 +181,56 @@ export default function QuickAddSettingsScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-background px-5 py-5">
-      <View className="gap-4">
-        <View className="flex-row items-center justify-between">
-          <Text variant="h3" className="text-left">
-            Quick Add 模板
-          </Text>
+    <ScrollView style={s.scroll}>
+      <View style={s.stack}>
+        <View style={s.headerRow}>
+          <Text variant="h3">Quick Add 模板</Text>
           <Pressable
-            className="rounded-sm border border-border bg-card px-3 py-2 active:opacity-90"
+            style={({ pressed }) => [
+              s.backBtn,
+              pressed ? { opacity: 0.9 } : undefined,
+            ]}
             onPress={() => router.back()}
           >
             <Text>返回</Text>
           </Pressable>
         </View>
 
-        {authError ? <Text className="text-destructive">{authError}</Text> : null}
+        {authError ? <Text style={s.err}>{authError}</Text> : null}
 
         <Card>
           <CardHeader>
             <CardTitle>首页卡片</CardTitle>
           </CardHeader>
-          <CardContent className="gap-3">
-            <Text variant="muted" className="leading-[18px]">
+          <CardContent style={mergeView(s.cardContent)}>
+            <Text variant="muted" style={s.lead}>
               这里配置首页底部的 Quick Add 卡片。支持选用内置模板（餐饮/通勤等）以及自定义位（自定义标题与金额）。
             </Text>
 
-            <View className="gap-3">
+            <View style={s.slotStack}>
               {drafts
                 .slice()
                 .sort((a, b) => a.position - b.position)
                 .map((d, idx) => (
-                  <View key={`slot-${d.position}`} className="gap-3">
-                    <View className="flex-row items-center justify-between">
-                      <Text variant="h4" className="text-left">
-                        Slot {idx + 1}
-                      </Text>
-                      <View className="flex-row gap-2">
+                  <View key={`slot-${d.position}`} style={s.slotBlock}>
+                    <View style={s.rowBetween}>
+                      <Text variant="h4">Slot {idx + 1}</Text>
+                      <View style={s.rowGap2}>
                         <Pressable
-                          className="rounded-sm border border-border bg-card px-3 py-2 active:opacity-90"
+                          style={({ pressed }) => [
+                            s.backBtn,
+                            pressed ? { opacity: 0.9 } : undefined,
+                          ]}
                           onPress={() => move(d.position, -1)}
                           disabled={idx === 0}
                         >
                           <Text>上移</Text>
                         </Pressable>
                         <Pressable
-                          className="rounded-sm border border-border bg-card px-3 py-2 active:opacity-90"
+                          style={({ pressed }) => [
+                            s.backBtn,
+                            pressed ? { opacity: 0.9 } : undefined,
+                          ]}
                           onPress={() => move(d.position, 1)}
                           disabled={idx === drafts.length - 1}
                         >
@@ -191,28 +239,30 @@ export default function QuickAddSettingsScreen() {
                       </View>
                     </View>
 
-                    <View className="flex-row gap-2">
+                    <View style={s.btnRow}>
                       <Pressable
-                        className={`flex-1 rounded-sm border px-3 py-2 active:opacity-90 ${
-                          d.kind === "scene"
-                            ? "border-foreground bg-secondary"
-                            : "border-border bg-card"
-                        }`}
+                        style={({ pressed }) => [
+                          s.flexChip,
+                          s.chip,
+                          d.kind === "scene" ? s.chipOn : s.chipOff,
+                          pressed ? { opacity: 0.9 } : undefined,
+                        ]}
                         onPress={() =>
                           updateDraft(d.position, {
                             kind: "scene",
-                            sceneId: (d.sceneId ?? ("commute" as SceneId)),
+                            sceneId: d.sceneId ?? ("commute" as SceneId),
                           })
                         }
                       >
                         <Text>内置模板</Text>
                       </Pressable>
                       <Pressable
-                        className={`flex-1 rounded-sm border px-3 py-2 active:opacity-90 ${
-                          d.kind === "custom"
-                            ? "border-foreground bg-secondary"
-                            : "border-border bg-card"
-                        }`}
+                        style={({ pressed }) => [
+                          s.flexChip,
+                          s.chip,
+                          d.kind === "custom" ? s.chipOn : s.chipOff,
+                          pressed ? { opacity: 0.9 } : undefined,
+                        ]}
                         onPress={() =>
                           updateDraft(d.position, {
                             kind: "custom",
@@ -232,29 +282,29 @@ export default function QuickAddSettingsScreen() {
                     </View>
 
                     {d.kind === "scene" ? (
-                      <View className="gap-2">
+                      <View style={s.gap2}>
                         <Text variant="muted">选择一个模板</Text>
-                        <View className="flex-row flex-wrap gap-2">
-                          {sceneOptions.map((s) => (
+                        <View style={s.wrapGap}>
+                          {sceneOptions.map((sc) => (
                             <Pressable
-                              key={s.id}
-                              className={`rounded-sm border px-3 py-2 active:opacity-90 ${
-                                d.sceneId === s.id
-                                  ? "border-foreground bg-secondary"
-                                  : "border-border bg-card"
-                              }`}
+                              key={sc.id}
+                              style={({ pressed }) => [
+                                s.chip,
+                                d.sceneId === sc.id ? s.chipOn : s.chipOff,
+                                pressed ? { opacity: 0.9 } : undefined,
+                              ]}
                               onPress={() =>
-                                updateDraft(d.position, { sceneId: s.id })
+                                updateDraft(d.position, { sceneId: sc.id })
                               }
                             >
-                              <Text>{s.title}</Text>
+                              <Text>{sc.title}</Text>
                             </Pressable>
                           ))}
                         </View>
                       </View>
                     ) : (
-                      <View className="gap-3">
-                        <View className="gap-2">
+                      <View style={s.gap3}>
+                        <View style={s.gap2}>
                           <Text variant="muted">标题</Text>
                           <Input
                             value={d.customTitle ?? ""}
@@ -263,20 +313,20 @@ export default function QuickAddSettingsScreen() {
                             }
                           />
                         </View>
-                        <View className="gap-2">
+                        <View style={s.gap2}>
                           <Text variant="muted">分类（影响卡片配色）</Text>
-                          <View className="flex-row flex-wrap gap-2">
+                          <View style={s.wrapGap}>
                             {CATEGORY_OPTIONS.map((opt) => {
                               const selected =
                                 (d.customCategory as CategoryOption | null) === opt;
                               return (
                                 <Pressable
                                   key={opt}
-                                  className={`rounded-sm border px-3 py-2 active:opacity-90 ${
-                                    selected
-                                      ? "border-foreground bg-secondary"
-                                      : "border-border bg-card"
-                                  }`}
+                                  style={({ pressed }) => [
+                                    s.chip,
+                                    selected ? s.chipOn : s.chipOff,
+                                    pressed ? { opacity: 0.9 } : undefined,
+                                  ]}
                                   onPress={() =>
                                     updateDraft(d.position, {
                                       customCategory: opt,
@@ -288,11 +338,11 @@ export default function QuickAddSettingsScreen() {
                               );
                             })}
                           </View>
-                          <Text variant="muted" className="leading-[18px]">
+                          <Text variant="muted" style={s.muteLead}>
                             建议保持分类精简：餐饮 / 出行 / 生活 / 其他。
                           </Text>
                         </View>
-                        <View className="gap-2">
+                        <View style={s.gap2}>
                           <Text variant="muted">金额（逗号分隔）</Text>
                           <Input
                             value={(d.suggestedAmounts ?? []).join(",")}
@@ -312,12 +362,12 @@ export default function QuickAddSettingsScreen() {
                 ))}
             </View>
 
-            <View className="flex-row gap-2">
-              <Button className="flex-1" onPress={addSlot}>
+            <View style={s.btnRow}>
+              <Button style={{ flex: 1 }} onPress={addSlot}>
                 <Text>新增一个 Slot</Text>
               </Button>
               <Button
-                className="flex-1"
+                style={{ flex: 1 }}
                 variant="secondary"
                 onPress={removeLastSlot}
               >
@@ -334,4 +384,3 @@ export default function QuickAddSettingsScreen() {
     </ScrollView>
   );
 }
-

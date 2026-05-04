@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text as RNText,
+  View,
+} from "react-native";
 import { Stack, router } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
@@ -17,6 +24,17 @@ import {
 import { getSession, signOut } from "@/src/auth/session";
 import { upsertCurrentAccountMeta } from "@/src/auth/accounts";
 import { apiFetch } from "@/src/lib/api";
+import { ui } from "@/src/theme/rn";
+import { DEFAULT_SCENES } from "@/src/domain/scenes";
+import type { SceneId } from "@/src/domain/scenes";
+import {
+  loadDailyReminderPrefs,
+  saveDailyReminderFromRule,
+  type StoredDailyReminder,
+} from "@/src/notifications/dailyReminderStorage";
+import { requestReminderPermissions } from "@/src/notifications/reminders";
+import type { ReminderRule } from "@/src/notifications/reminders";
+import { settingsStyles } from "@/src/screenStyles/settingsScreen.styles";
 
 function Row({
   title,
@@ -31,14 +49,17 @@ function Row({
 }) {
   return (
     <Pressable
-      className="flex-row items-center justify-between px-4 py-3 active:opacity-80"
+      style={({ pressed }) => [
+        settingsStyles.row,
+        !onPress ? undefined : pressed ? { opacity: 0.8 } : undefined,
+      ]}
       disabled={!onPress}
       onPress={onPress}
     >
-      <View className="min-w-0 flex-1">
-        <Text className="text-sm font-sansBold">{title}</Text>
+      <View style={settingsStyles.rowLeft}>
+        <Text style={settingsStyles.rowTitle}>{title}</Text>
         {subtitle ? (
-          <Text variant="muted" className="mt-[2px] text-xs">
+          <Text variant="muted" style={settingsStyles.rowSubtitle}>
             {subtitle}
           </Text>
         ) : null}
@@ -56,13 +77,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View className="gap-2">
-      <Text variant="muted" className="px-1 text-[11px] tracking-[1.2px]">
+    <View style={settingsStyles.sectionGap}>
+      <Text variant="muted" style={settingsStyles.sectionLabel}>
         {title}
       </Text>
-      <View className="rounded-none border border-border bg-card">
-        {children}
-      </View>
+      <View style={settingsStyles.sectionCard}>{children}</View>
     </View>
   );
 }
@@ -74,6 +93,28 @@ export default function SettingsScreen() {
   const [lang, setLang] = useState<"zh" | "en">("zh");
   const [isAuthed, setIsAuthed] = useState(false);
   const [autoSavedOnce, setAutoSavedOnce] = useState(false);
+  const [dailyReminder, setDailyReminder] = useState<StoredDailyReminder>({
+    enabled: false,
+    hour: 21,
+    minute: 0,
+    scene: "bedtime",
+  });
+
+  const persistDailyReminder = useCallback(
+    async (next: Omit<ReminderRule, "notificationId">) => {
+      try {
+        const prev = await loadDailyReminderPrefs();
+        const saved = await saveDailyReminderFromRule(prev, next);
+        setDailyReminder(saved);
+      } catch {
+        showToast(
+          lang === "zh" ? "保存提醒失败" : "Could not save reminder",
+          { variant: "error" },
+        );
+      }
+    },
+    [lang, showToast],
+  );
 
   const refresh = useCallback(async () => {
     const [list, active] = await Promise.all([
@@ -87,6 +128,9 @@ export default function SettingsScreen() {
 
     const s = await getSession();
     setIsAuthed(Boolean(s.data.session));
+
+    const rem = await loadDailyReminderPrefs();
+    setDailyReminder(rem);
   }, []);
 
   useEffect(() => {
@@ -103,11 +147,14 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (!isAuthed || activeAccount || autoSavedOnce) return;
     setAutoSavedOnce(true);
-    apiFetch<{ ok: true; user: { email: string } | null }>("/api/me")
+    apiFetch<{
+      ok: true;
+      user: { email: string; phoneNumber?: string | null } | null;
+    }>("/api/me")
       .then(async (me) => {
-        const email = me.user?.email;
-        if (!email) return;
-        await upsertCurrentAccountMeta(email);
+        const id = me.user?.phoneNumber ?? me.user?.email;
+        if (!id) return;
+        await upsertCurrentAccountMeta(id);
         await refresh();
       })
       .catch(() => {});
@@ -122,10 +169,10 @@ export default function SettingsScreen() {
         }}
       />
       <ScrollView
-        className="flex-1 bg-background"
-        contentContainerClassName="px-6 py-6"
+        style={settingsStyles.scroll}
+        contentContainerStyle={settingsStyles.scrollContent}
       >
-        <View className="gap-6">
+        <View style={settingsStyles.stackGap6}>
           <Section title="ACCOUNTS">
             {isAuthed ? (
               <>
@@ -138,10 +185,7 @@ export default function SettingsScreen() {
                           subtitle={a.email}
                           right={
                             a.storagePrefix === activePrefix ? (
-                              <Text
-                                variant="muted"
-                                className="text-[11px] tracking-[1px]"
-                              >
+                              <Text variant="muted" style={settingsStyles.badgeMuted}>
                                 当前
                               </Text>
                             ) : (
@@ -166,11 +210,11 @@ export default function SettingsScreen() {
                           }}
                         />
                         {idx !== accounts.length - 1 ? (
-                          <View className="h-px bg-border" />
+                          <View style={settingsStyles.hairline} />
                         ) : null}
                       </View>
                     ))}
-                    <View className="h-px bg-border" />
+                    <View style={settingsStyles.hairline} />
                   </>
                 ) : null}
 
@@ -183,7 +227,7 @@ export default function SettingsScreen() {
                     router.back();
                   }}
                 />
-                <View className="h-px bg-border" />
+                <View style={settingsStyles.hairline} />
                 <Row
                   title="登出"
                   subtitle={
@@ -216,7 +260,7 @@ export default function SettingsScreen() {
               subtitle="Name, avatar and more"
               onPress={() => router.push("/edit-profile" as never)}
             />
-            <View className="h-px bg-border" />
+            <View style={settingsStyles.hairline} />
             <Row
               title="Deactivate account"
               subtitle="Soft delete (can be recovered later)"
@@ -259,6 +303,179 @@ export default function SettingsScreen() {
             />
           </Section>
 
+          <Section title="BUDGET">
+            <Row
+              title={lang === "zh" ? "月度预算" : "Monthly budget"}
+              subtitle={
+                lang === "zh"
+                  ? "支出上限与参考说明"
+                  : "Spend cap and reference notes"
+              }
+              onPress={() => router.push("/budget-settings" as never)}
+            />
+          </Section>
+
+          <Section title="NOTIFICATIONS">
+            <View style={settingsStyles.row}>
+              <View style={settingsStyles.rowLeft}>
+                <Text style={settingsStyles.rowTitle}>
+                  {lang === "zh" ? "每日记账提醒" : "Daily reminder"}
+                </Text>
+                <Text variant="muted" style={settingsStyles.rowSubtitle}>
+                  {lang === "zh"
+                    ? "本地定时通知，固定时间提醒打开记账"
+                    : "Local notification at a fixed time"}
+                </Text>
+              </View>
+              <Switch
+                value={dailyReminder.enabled}
+                onValueChange={async (v) => {
+                  if (v) {
+                    const ok = await requestReminderPermissions();
+                    if (!ok) {
+                      showToast(
+                        lang === "zh"
+                          ? "需要通知权限"
+                          : "Notification permission required",
+                        { variant: "error" },
+                      );
+                      return;
+                    }
+                  }
+                  await persistDailyReminder({
+                    enabled: v,
+                    hour: dailyReminder.hour,
+                    minute: dailyReminder.minute,
+                    scene: dailyReminder.scene,
+                  });
+                }}
+              />
+            </View>
+
+            {dailyReminder.enabled ? (
+              <>
+                <View style={settingsStyles.hairline} />
+                <View style={{ paddingHorizontal: 16, paddingVertical: 10, gap: 10 }}>
+                  <RNText style={{ fontSize: 12, color: ui.mutedText }}>
+                    {lang === "zh" ? "时间（本地定时）" : "Time (local)"}
+                  </RNText>
+                  <View style={settingsStyles.reminderTools}>
+                    <RNText style={{ width: 36, fontSize: 13, color: ui.mutedText }}>
+                      {lang === "zh" ? "时" : "H"}
+                    </RNText>
+                    <Pressable
+                      style={({ pressed }) => [
+                        settingsStyles.stepperBtn,
+                        pressed ? { opacity: 0.85 } : undefined,
+                      ]}
+                      onPress={() =>
+                        void persistDailyReminder({
+                          enabled: true,
+                          hour: (dailyReminder.hour + 23) % 24,
+                          minute: dailyReminder.minute,
+                          scene: dailyReminder.scene,
+                        })
+                      }
+                    >
+                      <RNText style={settingsStyles.stepperVal}>−</RNText>
+                    </Pressable>
+                    <RNText style={[settingsStyles.stepperVal, { minWidth: 36, textAlign: "center" }]}>
+                      {String(dailyReminder.hour).padStart(2, "0")}
+                    </RNText>
+                    <Pressable
+                      style={({ pressed }) => [
+                        settingsStyles.stepperBtn,
+                        pressed ? { opacity: 0.85 } : undefined,
+                      ]}
+                      onPress={() =>
+                        void persistDailyReminder({
+                          enabled: true,
+                          hour: (dailyReminder.hour + 1) % 24,
+                          minute: dailyReminder.minute,
+                          scene: dailyReminder.scene,
+                        })
+                      }
+                    >
+                      <RNText style={settingsStyles.stepperVal}>+</RNText>
+                    </Pressable>
+                  </View>
+                  <View style={settingsStyles.reminderTools}>
+                    <RNText style={{ width: 36, fontSize: 13, color: ui.mutedText }}>
+                      {lang === "zh" ? "分" : "M"}
+                    </RNText>
+                    <Pressable
+                      style={({ pressed }) => [
+                        settingsStyles.stepperBtn,
+                        pressed ? { opacity: 0.85 } : undefined,
+                      ]}
+                      onPress={() =>
+                        void persistDailyReminder({
+                          enabled: true,
+                          hour: dailyReminder.hour,
+                          minute: (dailyReminder.minute + 59) % 60,
+                          scene: dailyReminder.scene,
+                        })
+                      }
+                    >
+                      <RNText style={settingsStyles.stepperVal}>−</RNText>
+                    </Pressable>
+                    <RNText style={[settingsStyles.stepperVal, { minWidth: 36, textAlign: "center" }]}>
+                      {String(dailyReminder.minute).padStart(2, "0")}
+                    </RNText>
+                    <Pressable
+                      style={({ pressed }) => [
+                        settingsStyles.stepperBtn,
+                        pressed ? { opacity: 0.85 } : undefined,
+                      ]}
+                      onPress={() =>
+                        void persistDailyReminder({
+                          enabled: true,
+                          hour: dailyReminder.hour,
+                          minute: (dailyReminder.minute + 1) % 60,
+                          scene: dailyReminder.scene,
+                        })
+                      }
+                    >
+                      <RNText style={settingsStyles.stepperVal}>+</RNText>
+                    </Pressable>
+                  </View>
+                </View>
+                <View style={settingsStyles.hairline} />
+                <Pressable
+                  style={({ pressed }) => [
+                    settingsStyles.row,
+                    pressed ? { opacity: 0.85 } : undefined,
+                  ]}
+                  onPress={() => {
+                    const idx = DEFAULT_SCENES.findIndex(
+                      (s) => s.id === dailyReminder.scene,
+                    );
+                    const nextScene = DEFAULT_SCENES[
+                      (idx + 1) % DEFAULT_SCENES.length
+                    ].id as SceneId;
+                    void persistDailyReminder({
+                      enabled: true,
+                      hour: dailyReminder.hour,
+                      minute: dailyReminder.minute,
+                      scene: nextScene,
+                    });
+                  }}
+                >
+                  <View style={settingsStyles.rowLeft}>
+                    <Text style={settingsStyles.rowTitle}>
+                      {lang === "zh" ? "提醒场景" : "Scene"}
+                    </Text>
+                    <Text variant="muted" style={settingsStyles.rowSubtitle}>
+                      {DEFAULT_SCENES.find((s) => s.id === dailyReminder.scene)
+                        ?.title ?? dailyReminder.scene}
+                    </Text>
+                  </View>
+                  <RNText style={{ color: ui.mutedText }}>›</RNText>
+                </Pressable>
+              </>
+            ) : null}
+          </Section>
+
           <Section title="PREFERENCES">
             <Row
               title="Language"
@@ -274,11 +491,8 @@ export default function SettingsScreen() {
             />
           </Section>
 
-          <Pressable
-            className="items-center py-2 active:opacity-70"
-            onPress={() => router.back()}
-          >
-            <Text variant="muted" className="text-[12px]">
+          <Pressable style={settingsStyles.backPress} onPress={() => router.back()}>
+            <Text variant="muted" style={settingsStyles.backText}>
               Back
             </Text>
           </Pressable>

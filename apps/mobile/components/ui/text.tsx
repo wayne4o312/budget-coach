@@ -1,94 +1,125 @@
-import { cn } from '@/components/lib/utils';
-import * as Slot from '@rn-primitives/slot';
-import { cva, type VariantProps } from 'class-variance-authority';
-import * as React from 'react';
-import { Platform, Text as RNText, type Role } from 'react-native';
+import * as Slot from "@rn-primitives/slot";
+import * as React from "react";
+import {
+  Platform,
+  Text as RNText,
+  type TextProps as RNTextProps,
+  type TextStyle,
+} from "react-native";
 
-const textVariants = cva(
-  cn(
-    'text-foreground text-base font-sans',
-    Platform.select({
-      web: 'select-text',
-    })
-  ),
-  {
-    variants: {
-      variant: {
-        default: '',
-        h1: cn(
-          'text-[34px] leading-[40px] font-serifTitle tracking-[-0.3px]',
-          Platform.select({ web: 'scroll-m-20 text-balance' })
-        ),
-        h2: cn(
-          'text-[24px] leading-[30px] font-serifTitle tracking-[-0.2px]',
-          Platform.select({ web: 'scroll-m-20 first:mt-0' })
-        ),
-        h3: cn(
-          'text-[20px] leading-[26px] font-serifTitle tracking-[-0.1px]',
-          Platform.select({ web: 'scroll-m-20' })
-        ),
-        h4: cn(
-          'text-[16px] leading-[22px] font-sansMedium',
-          Platform.select({ web: 'scroll-m-20' })
-        ),
-        p: 'leading-7',
-        blockquote: 'border-l-2 pl-3 italic',
-        code: cn(
-          'bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold'
-        ),
-        lead: 'text-muted-foreground text-[18px] leading-[24px]',
-        large: 'text-[16px] leading-[22px] font-sansMedium',
-        small: 'text-[13px] leading-[18px] font-sans',
-        muted: 'text-muted-foreground text-sm',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-    },
-  }
+import { fonts, mergeText, ui } from "@/src/theme/rn";
+
+export const TextStyleContext = React.createContext<TextStyle | undefined>(
+  undefined,
 );
 
-type TextVariantProps = VariantProps<typeof textVariants>;
+/** @deprecated use TextStyleContext */
+export const TextClassContext = TextStyleContext;
 
-type TextVariant = NonNullable<TextVariantProps['variant']>;
-
-const ROLE: Partial<Record<TextVariant, Role>> = {
-  h1: 'heading',
-  h2: 'heading',
-  h3: 'heading',
-  h4: 'heading',
-  blockquote: Platform.select({ web: 'blockquote' as Role }),
-  code: Platform.select({ web: 'code' as Role }),
+const baseText: TextStyle = {
+  fontSize: 16,
+  lineHeight: 22,
+  fontFamily: fonts.sans,
+  color: ui.text,
 };
 
-const ARIA_LEVEL: Partial<Record<TextVariant, string>> = {
-  h1: '1',
-  h2: '2',
-  h3: '3',
-  h4: '4',
+const variantStyles: Record<string, TextStyle> = {
+  default: {},
+  h1: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontFamily: fonts.serifTitle,
+    letterSpacing: -0.3,
+    color: ui.text,
+  },
+  h2: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontFamily: fonts.serifTitle,
+    letterSpacing: -0.2,
+    color: ui.text,
+  },
+  h3: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontFamily: fonts.serifTitle,
+    letterSpacing: -0.1,
+    color: ui.text,
+  },
+  h4: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: fonts.sansMedium,
+    color: ui.text,
+  },
+  p: { lineHeight: 28 },
+  blockquote: {
+    borderLeftWidth: 2,
+    borderLeftColor: ui.border,
+    paddingLeft: 12,
+    fontStyle: "italic",
+  },
+  code: {
+    backgroundColor: ui.backgroundMuted,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  lead: {
+    fontSize: 18,
+    lineHeight: 24,
+    color: ui.mutedText,
+  },
+  large: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: fonts.sansMedium,
+    color: ui.text,
+  },
+  small: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: fonts.sans,
+    color: ui.text,
+  },
+  muted: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: ui.mutedText,
+    fontFamily: fonts.sans,
+  },
 };
 
-const TextClassContext = React.createContext<string | undefined>(undefined);
+type Variant = keyof typeof variantStyles;
 
 function Text({
-  className,
+  style,
   asChild = false,
-  variant = 'default',
+  variant = "default",
+  accessibilityRole,
   ...props
-}: React.ComponentProps<typeof RNText> &
-  TextVariantProps & {
-    asChild?: boolean;
-  }) {
-  const textClass = React.useContext(TextClassContext);
+}: RNTextProps & {
+  asChild?: boolean;
+  variant?: Variant;
+}) {
+  const inherited = React.useContext(TextStyleContext);
   const Component = asChild ? Slot.Text : RNText;
+  const v = variantStyles[variant] ?? variantStyles.default;
+
   return (
     <Component
-      className={cn(textVariants({ variant }), textClass, className)}
-      role={variant ? ROLE[variant] : undefined}
-      aria-level={variant ? ARIA_LEVEL[variant] : undefined}
+      accessibilityRole={
+        typeof variant === "string" && /^h[1-4]$/.test(variant)
+          ? "header"
+          : accessibilityRole
+      }
+      style={mergeText(baseText, v, inherited, style)}
       {...props}
     />
   );
 }
 
-export { Text, TextClassContext };
+export { Text };

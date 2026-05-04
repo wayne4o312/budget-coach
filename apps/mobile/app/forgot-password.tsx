@@ -1,104 +1,61 @@
-import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
-import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
-import { useToast } from "@/src/ui/toast";
-import { requestPasswordReset } from "@/src/auth/password";
+import { fonts, ui } from "@/src/theme/rn";
 
-const formInput = "h-12 w-full rounded-none border border-border bg-card px-3 py-0";
-const primaryButton =
-  "h-12 w-full items-center justify-center rounded-none active:opacity-90";
+const s = StyleSheet.create({
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 24 },
+  stack: { gap: 24 },
+  title: {
+    fontSize: 16,
+    fontFamily: fonts.sansMedium,
+    letterSpacing: 0.6,
+    color: ui.text,
+  },
+  body: { fontSize: 12, lineHeight: 20 },
+  primaryBtn: {
+    height: 48,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#000",
+  },
+  primaryLabel: { fontSize: 15, fontWeight: "600", color: "#fff" },
+  ghostPress: { alignItems: "center", paddingVertical: 8 },
+  ghostText: { fontSize: 12 },
+});
 
 export default function ForgotPasswordScreen() {
-  const { showToast } = useToast();
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const emailHint = useMemo(() => {
-    const e = email.trim();
-    if (!e) return "";
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? "" : "请输入有效邮箱";
-  }, [email]);
-
-  const canSubmit = !busy && !!email.trim() && !emailHint;
-
   return (
     <>
-      <Stack.Screen options={{ title: "Forgot password", headerShadowVisible: false }} />
-      <KeyboardAvoidingView
-        className="flex-1 bg-background"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <Stack.Screen
+        options={{ title: "登录帮助", headerShadowVisible: false }}
+      />
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="flex-grow px-6 py-6"
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View className="gap-6">
-            <Text className="text-[16px] font-sansMedium tracking-[0.6px]">
-              RESET YOUR PASSWORD
+        <View style={s.stack}>
+          <Text style={s.title}>手机号验证码登录</Text>
+          <Text variant="muted" style={s.body}>
+            当前已使用「手机号 + 短信验证码」登录，无需密码。请打开「我的」页，输入手机号后点击「获取验证码」，凭短信中的
+            6 位数字完成登录或注册。
+          </Text>
+          <Pressable
+            style={s.primaryBtn}
+            onPress={() => router.replace("/(tabs)/me" as never)}
+          >
+            <Text style={s.primaryLabel}>前往「我的」登录</Text>
+          </Pressable>
+          <Pressable style={s.ghostPress} onPress={() => router.back()}>
+            <Text variant="muted" style={s.ghostText}>
+              返回
             </Text>
-            <Text variant="muted" className="text-[12px] leading-5">
-              我们会向你的邮箱发送一条重置链接（如果该邮箱存在于系统中）。
-            </Text>
-
-            <View className="gap-2">
-              <Input
-                className={formInput}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="Enter your email address"
-              />
-              {emailHint ? (
-                <Text variant="muted" className="text-[12px] text-destructive">
-                  {emailHint}
-                </Text>
-              ) : null}
-            </View>
-
-            <Pressable
-              className={`${primaryButton} ${canSubmit ? "bg-black" : "bg-muted"}`}
-              disabled={!canSubmit}
-              onPress={async () => {
-                if (!canSubmit) return;
-                setBusy(true);
-                try {
-                  const { error } = await requestPasswordReset(email.trim());
-                  if (error) {
-                    showToast(`发送失败：${error.message ?? "Unknown error"}`, {
-                      variant: "error",
-                    });
-                    return;
-                  }
-                  showToast("已发送（请检查邮箱或垃圾箱）");
-                  router.back();
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <Text
-                className={`text-[15px] font-medium ${
-                  canSubmit ? "text-white" : "text-muted-foreground"
-                }`}
-              >
-                {busy ? "SENDING..." : "SEND RESET LINK"}
-              </Text>
-            </Pressable>
-
-            <Pressable className="items-center py-2 active:opacity-70" onPress={() => router.back()}>
-              <Text variant="muted" className="text-[12px]">
-                Back
-              </Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </Pressable>
+        </View>
+      </ScrollView>
     </>
   );
 }
-

@@ -2,6 +2,13 @@ import { getAuthClient } from "@/src/lib/auth-client";
 
 type AuthResult<T> = { data: T; error: { message?: string } | null };
 
+type PhoneAuthClient = ReturnType<typeof getAuthClient> & {
+  phoneNumber: {
+    sendOtp: (args: { phoneNumber: string }) => Promise<unknown>;
+    verify: (args: { phoneNumber: string; code: string }) => Promise<unknown>;
+  };
+};
+
 type AuthUser = { id: string } | null;
 type AuthSession = { user?: { id: string } } | null;
 
@@ -18,6 +25,26 @@ async function emitAuthChange() {
 
 export async function refreshAuthState() {
   await emitAuthChange();
+}
+
+function phoneClient(): PhoneAuthClient {
+  return getAuthClient() as PhoneAuthClient;
+}
+
+export async function sendPhoneOtp(phoneNumber: string) {
+  const res = await phoneClient().phoneNumber.sendOtp({ phoneNumber });
+  const r = res as unknown as AuthResult<{ message?: string }>;
+  return { data: r.data ?? null, error: r.error ?? null };
+}
+
+export async function verifyPhoneOtp(phoneNumber: string, code: string) {
+  const res = await phoneClient().phoneNumber.verify({ phoneNumber, code });
+  const r = res as unknown as AuthResult<unknown>;
+  if (r.error) {
+    return { data: { session: null }, error: r.error };
+  }
+  void emitAuthChange();
+  return await getSession();
 }
 
 export async function signUpWithPassword(email: string, password: string) {

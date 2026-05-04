@@ -1,13 +1,29 @@
-import type { TextInputProps } from 'react-native';
-import { TextInput } from 'react-native';
+import type { TextInputProps, TextStyle } from "react-native";
+import { TextInput } from "react-native";
 
-export function TextField(props: TextInputProps) {
+import Colors from "@/constants/Colors";
+
+const C = Colors.light;
+
+const base: TextStyle = {
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: C.border,
+  backgroundColor: C.backgroundMuted,
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  fontFamily: "Nunito_600SemiBold",
+  fontSize: 15,
+  lineHeight: 21,
+  color: C.text,
+};
+
+export function TextField({ style, ...props }: TextInputProps) {
   return (
     <TextInput
-      placeholderTextColor="#94A3B8"
+      placeholderTextColor={C.mutedText}
+      style={[base, style]}
       {...props}
-      className="rounded-2xl border border-border bg-surfaceMuted px-4 py-3 font-nunito text-[15px] leading-[21px] text-text"
-      style={props.style}
     />
   );
 }

@@ -4,7 +4,9 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   View,
+  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
@@ -13,11 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { useToast } from "@/src/ui/toast";
 import { resetPassword } from "@/src/auth/password";
-
-const formInput =
-  "h-12 w-full rounded-none border border-border bg-card px-3 py-0";
-const primaryButton =
-  "h-12 w-full items-center justify-center rounded-none active:opacity-90";
+import { Palette } from "@/src/theme/palette";
+import { fonts, mergeText, ui } from "@/src/theme/rn";
 
 const MIN_PASSWORD_LEN = 8;
 
@@ -28,6 +27,51 @@ const passwordRevealHitStyle: ViewStyle = {
   height: 48,
   width: 44,
 };
+
+const formInput: TextStyle = {
+  height: 48,
+  borderRadius: 0,
+  borderWidth: 1,
+  borderColor: ui.border,
+  backgroundColor: ui.card,
+  paddingHorizontal: 12,
+  paddingVertical: 0,
+  paddingRight: 56,
+};
+
+const s = StyleSheet.create({
+  kav: { flex: 1, backgroundColor: ui.background },
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 24 },
+  stack: { gap: 24 },
+  sectionGap: { gap: 8 },
+  title: {
+    fontSize: 16,
+    fontFamily: fonts.sansMedium,
+    letterSpacing: 0.6,
+    color: ui.text,
+  },
+  body: { fontSize: 12, lineHeight: 20 },
+  ghostPress: { alignItems: "center", paddingVertical: 8 },
+  ghostLabel: { fontSize: 12, fontFamily: fonts.sansMedium, color: ui.text },
+  primaryBtn: {
+    height: 48,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 0,
+  },
+  primaryOn: { backgroundColor: "#000" },
+  primaryOff: { backgroundColor: ui.backgroundMuted },
+  primaryLabel: { fontSize: 15, fontWeight: "600" },
+  revealPress: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingRight: 4,
+  },
+  wrap: { position: "relative", width: "100%" },
+});
 
 export default function ResetPasswordScreen() {
   const { showToast } = useToast();
@@ -59,47 +103,39 @@ export default function ResetPasswordScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{ title: "Reset password", headerShadowVisible: false }}
-      />
+      <Stack.Screen options={{ title: "Reset password", headerShadowVisible: false }} />
       <KeyboardAvoidingView
-        className="flex-1 bg-background"
+        style={s.kav}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          className="flex-1"
-          contentContainerClassName="flex-grow px-6 py-6"
+          style={s.scroll}
+          contentContainerStyle={s.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="gap-6">
+          <View style={s.stack}>
             {!token ? (
-              <View className="gap-2">
-                <Text className="text-[16px] font-sansMedium tracking-[0.6px]">
-                  INVALID LINK
-                </Text>
-                <Text variant="muted" className="text-[12px] leading-5">
+              <View style={s.sectionGap}>
+                <Text style={s.title}>INVALID LINK</Text>
+                <Text variant="muted" style={s.body}>
                   链接无效或已过期。{params.error ? `（${params.error}）` : ""}
                 </Text>
                 <Pressable
-                  className="items-center py-2 active:opacity-70"
+                  style={s.ghostPress}
                   onPress={() => router.replace("/forgot-password" as never)}
                 >
-                  <Text className="text-[12px] font-sansMedium">
-                    Request a new link
-                  </Text>
+                  <Text style={s.ghostLabel}>Request a new link</Text>
                 </Pressable>
               </View>
             ) : (
               <>
-                <Text className="text-[16px] font-sansMedium tracking-[0.6px]">
-                  SET A NEW PASSWORD
-                </Text>
+                <Text style={s.title}>SET A NEW PASSWORD</Text>
 
-                <View className="gap-2">
-                  <View className="relative w-full">
+                <View style={s.sectionGap}>
+                  <View style={s.wrap}>
                     <Input
-                      className={`${formInput} pr-14`}
+                      style={mergeText(formInput)}
                       value={p1}
                       onChangeText={setP1}
                       secureTextEntry={!showP1}
@@ -107,8 +143,7 @@ export default function ResetPasswordScreen() {
                     />
                     <Pressable
                       accessibilityLabel={showP1 ? "隐藏新密码" : "显示新密码"}
-                      style={passwordRevealHitStyle}
-                      className="flex-row items-center justify-end pr-1 active:opacity-70"
+                      style={[passwordRevealHitStyle, s.revealPress]}
                       onPress={() => setShowP1((v) => !v)}
                     >
                       {showP1 ? (
@@ -118,9 +153,9 @@ export default function ResetPasswordScreen() {
                       )}
                     </Pressable>
                   </View>
-                  <View className="relative w-full">
+                  <View style={s.wrap}>
                     <Input
-                      className={`${formInput} pr-14`}
+                      style={mergeText(formInput)}
                       value={p2}
                       onChangeText={setP2}
                       secureTextEntry={!showP2}
@@ -130,8 +165,7 @@ export default function ResetPasswordScreen() {
                       accessibilityLabel={
                         showP2 ? "隐藏确认密码" : "显示确认密码"
                       }
-                      style={passwordRevealHitStyle}
-                      className="flex-row items-center justify-end pr-1 active:opacity-70"
+                      style={[passwordRevealHitStyle, s.revealPress]}
                       onPress={() => setShowP2((v) => !v)}
                     >
                       {showP2 ? (
@@ -144,7 +178,7 @@ export default function ResetPasswordScreen() {
                   {hint ? (
                     <Text
                       variant="muted"
-                      className="text-[12px] text-destructive"
+                      style={{ fontSize: 12, color: Palette.destructive }}
                     >
                       {hint}
                     </Text>
@@ -152,9 +186,7 @@ export default function ResetPasswordScreen() {
                 </View>
 
                 <Pressable
-                  className={`${primaryButton} ${
-                    canSubmit ? "bg-black" : "bg-muted"
-                  }`}
+                  style={[s.primaryBtn, canSubmit ? s.primaryOn : s.primaryOff]}
                   disabled={!canSubmit}
                   onPress={async () => {
                     if (!token) return;
@@ -178,9 +210,10 @@ export default function ResetPasswordScreen() {
                   }}
                 >
                   <Text
-                    className={`text-[15px] font-medium ${
-                      canSubmit ? "text-white" : "text-muted-foreground"
-                    }`}
+                    style={mergeText(s.primaryLabel, {
+                      color: canSubmit ? "#fff" : ui.mutedText,
+                      fontFamily: fonts.sansMedium,
+                    })}
                   >
                     {busy ? "UPDATING..." : "UPDATE PASSWORD"}
                   </Text>

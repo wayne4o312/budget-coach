@@ -1,4 +1,4 @@
-// Cinema amber (warm, low-saturation, premium) — keep in sync with `global.css`.
+// Cinema amber (warm, low-saturation, premium) — app UI tokens for StyleSheet.
 const primaryLight = '#AB7942'; // rgb(171,121,66)
 const primaryDark = '#AB7942';
 
@@ -20,7 +20,7 @@ export default {
   },
   dark: {
     // Keep dark close to light for now since the app's main aesthetic is warm-light.
-    // (If you later add true dark tokens in `global.css`, mirror them here.)
+    // (If you later add true dark tokens, mirror them here.)
     text: '#1C1814',
     mutedText: '#7A6959',
     background: '#F6F0E6',

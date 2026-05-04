@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Stack, router } from "expo-router";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { useToast } from "@/src/ui/toast";
 import { apiFetch } from "@/src/lib/api";
+import { Palette } from "@/src/theme/palette";
+import { fonts, mergeText, ui } from "@/src/theme/rn";
 
 type MeResponse = {
   ok: true;
@@ -15,6 +24,49 @@ type MeResponse = {
     title?: string | null;
   } | null;
 };
+
+const s = StyleSheet.create({
+  kav: { flex: 1, backgroundColor: ui.background },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 24, paddingVertical: 24 },
+  stack: { gap: 24 },
+  card: {
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: ui.card,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  label: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: ui.mutedText,
+  },
+  input: {
+    marginTop: 12,
+    height: 48,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: ui.background,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
+  },
+  hint: { marginTop: 8, fontSize: 12, color: Palette.destructive },
+  saveBtn: {
+    height: 48,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 0,
+  },
+  saveBtnOn: { backgroundColor: "#000" },
+  saveBtnOff: { backgroundColor: ui.backgroundMuted },
+  saveLabel: { fontSize: 15, fontWeight: "600" },
+  cancelPress: { alignItems: "center", paddingVertical: 8 },
+  cancelText: { fontSize: 12 },
+});
 
 export default function EditProfileScreen() {
   const { showToast } = useToast();
@@ -69,54 +121,52 @@ export default function EditProfileScreen() {
         }}
       />
       <KeyboardAvoidingView
-        className="flex-1 bg-background"
+        style={s.kav}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          className="flex-1"
-          contentContainerClassName="px-6 py-6"
+          style={s.scroll}
+          contentContainerStyle={s.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="gap-6">
-            <View className="rounded-none border border-border bg-card px-4 py-4">
-              <Text variant="muted" className="text-[11px] tracking-[1.2px]">
+          <View style={s.stack}>
+            <View style={s.card}>
+              <Text variant="muted" style={s.label}>
                 NICKNAME
               </Text>
               <Input
-                className="mt-3 h-12 w-full rounded-none border border-border bg-background px-3 py-0"
+                style={mergeText(s.input)}
                 value={nickname}
                 onChangeText={setNickname}
                 placeholder="你的昵称"
               />
               {nicknameHint ? (
-                <Text variant="muted" className="mt-2 text-[12px] text-destructive">
+                <Text variant="muted" style={s.hint}>
                   {nicknameHint}
                 </Text>
               ) : null}
             </View>
 
-            <View className="rounded-none border border-border bg-card px-4 py-4">
-              <Text variant="muted" className="text-[11px] tracking-[1.2px]">
+            <View style={s.card}>
+              <Text variant="muted" style={s.label}>
                 TITLE
               </Text>
               <Input
-                className="mt-3 h-12 w-full rounded-none border border-border bg-background px-3 py-0"
+                style={mergeText(s.input)}
                 value={title}
                 onChangeText={setTitle}
                 placeholder="比如：Product Designer"
               />
               {titleHint ? (
-                <Text variant="muted" className="mt-2 text-[12px] text-destructive">
+                <Text variant="muted" style={s.hint}>
                   {titleHint}
                 </Text>
               ) : null}
             </View>
 
             <Pressable
-              className={`h-12 w-full items-center justify-center rounded-none active:opacity-90 ${
-                canSave ? "bg-black" : "bg-muted"
-              }`}
+              style={[s.saveBtn, canSave ? s.saveBtnOn : s.saveBtnOff]}
               disabled={!canSave}
               onPress={async () => {
                 if (!canSave) return;
@@ -124,30 +174,40 @@ export default function EditProfileScreen() {
                 try {
                   await apiFetch("/api/me", {
                     method: "PATCH",
-                    json: { nickname: nickname.trim(), title: title.trim() || undefined },
+                    json: {
+                      nickname: nickname.trim(),
+                      title: title.trim() || undefined,
+                    },
                   });
                   showToast("已保存");
                   router.back();
                 } catch (e) {
-                  showToast(`保存失败：${e instanceof Error ? e.message : String(e)}`, {
-                    variant: "error",
-                  });
+                  showToast(
+                    `保存失败：${e instanceof Error ? e.message : String(e)}`,
+                    {
+                      variant: "error",
+                    }
+                  );
                 } finally {
                   setBusy(false);
                 }
               }}
             >
               <Text
-                className={`text-[15px] font-medium ${
-                  canSave ? "text-white" : "text-muted-foreground"
-                }`}
+                style={mergeText(s.saveLabel, {
+                  color: canSave ? "#fff" : ui.mutedText,
+                  fontFamily: fonts.sansMedium,
+                })}
               >
                 {busy ? "SAVING..." : "SAVE"}
               </Text>
             </Pressable>
 
-            <Pressable className="items-center py-2 active:opacity-70" onPress={() => router.back()}>
-              <Text variant="muted" className="text-[12px]">
+            <Pressable
+              style={s.cancelPress}
+              onPress={() => router.back()}
+            >
+              <Text variant="muted" style={s.cancelText}>
                 Cancel
               </Text>
             </Pressable>
@@ -157,4 +217,3 @@ export default function EditProfileScreen() {
     </>
   );
 }
-
